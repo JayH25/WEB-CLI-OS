@@ -109,27 +109,27 @@ npm start
 
 ### 0.1 — Git & Branching Strategy
 
-- [ ] Set up a `main` branch (production-ready only) and a `dev` branch (active development)
-- [ ] Agree on a branch naming convention: `feature/feature-name`, `fix/bug-name`, `chore/task-name`
-- [ ] Write a `CONTRIBUTING.md` explaining how to open a PR, review, and merge
-- [ ] Protect the `main` branch — no one pushes directly to main, everything goes through PRs
-- [ ] Set up GitHub Issues and use labels: `bug`, `feature`, `enhancement`, `documentation`
-- [ ] Create a GitHub Project board (Kanban) with columns: `Backlog`, `In Progress`, `Review`, `Done`
+- [x] Set up a `main` branch (production-ready only) and a `dev` branch (active development)
+- [x] Agree on a branch naming convention: `feature/feature-name`, `fix/bug-name`, `chore/task-name`
+- [x] Write a `CONTRIBUTING.md` explaining how to open a PR, review, and merge
+- [x] Protect the `main` branch — no one pushes directly to main, everything goes through PRs
+- [x] Set up GitHub Issues and use labels: `bug`, `feature`, `enhancement`, `documentation`
+- [x] Create a GitHub Project board (Kanban) with columns: `Backlog`, `In Progress`, `Review`, `Done`
 
 ### 0.2 — Code Quality Tooling
 
-- [ ] Add **ESLint** to both frontend and backend for consistent code style
-- [ ] Add **Prettier** for auto-formatting
-- [ ] Add `.editorconfig` to standardize indentation, line endings, etc.
-- [ ] Add a `pre-commit` hook using `husky` + `lint-staged` to auto-lint before every commit
-- [ ] Write a root-level `package.json` with scripts: `npm run dev` (starts everything), `npm run lint`, `npm run build`
+- [x] Add **ESLint** to both frontend and backend for consistent code style
+- [x] Add **Prettier** for auto-formatting
+- [x] Add `.editorconfig` to standardize indentation, line endings, etc.
+- [x] Add a `pre-commit` hook using `husky` + `lint-staged` to auto-lint before every commit
+- [x] Write a root-level `package.json` with scripts: `npm run dev` (starts everything), `npm run lint`, `npm run build`
 
 ### 0.3 — Project Architecture Decision
 
-- [ ] Finalize and document the folder structure for frontend, backend, and engine
-- [ ] Decide and document what the C++ engine is responsible for vs the Node backend
-- [ ] Draw and commit an architecture diagram to the repo (can be a simple `.png` or ASCII)
-- [ ] Assign ownership: who owns frontend, backend, engine, and DevOps/infra
+- [x] Finalize and document the folder structure for frontend, backend, and engine
+- [x] Decide and document what the C++ engine is responsible for vs the Node backend
+- [x] Draw and commit an architecture diagram to the repo (can be a simple `.png` or ASCII)
+- [x] Assign ownership: who owns frontend, backend, engine, and DevOps/infra
 
 ---
 
