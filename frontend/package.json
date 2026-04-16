@@ -15,9 +15,13 @@
   "scripts": {
     "start": "react-scripts start",
     "dev": "react-scripts start",
+    "lint": "eslint src",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.1"
   },
   "eslintConfig": {
     "extends": [

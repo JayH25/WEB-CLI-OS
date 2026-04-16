@@ -1,0 +1,32 @@
+{
+  "name": "web-cli-os",
+  "private": true,
+  "scripts": {
+    "lint:frontend": "npm --prefix frontend run lint",
+    "lint:backend": "npm --prefix backend run lint",
+    "lint:engine": "clang-tidy engine/main.cpp --config-file=.clang-tidy -- -std=c++17",
+    "lint": "npm run lint:frontend && npm run lint:backend && npm run lint:engine",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.3"
+  },
+  "lint-staged": {
+    "backend/**/*.js": [
+      "npm --prefix backend exec eslint --fix"
+    ],
+    "frontend/src/**/*.js": [
+      "npm --prefix frontend exec eslint --fix"
+    ],
+    "engine/**/*.cpp": [
+      "clang-format -i"
+    ],
+    "**/*.{json,md,css,html}": [
+      "prettier --write"
+    ]
+  }
+}

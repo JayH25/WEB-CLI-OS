@@ -1,58 +1,60 @@
+#include <exception>
 #include <iostream>
-#include <vector>
 #include <sstream>
-using namespace std;
+#include <string>
+#include <vector>
 
-vector<string> virtualFiles;
+namespace {
+std::vector<std::string> virtualFiles;
+}  // namespace
 
-int main() {
-    string line, command, argument;
+auto main() -> int {
+    try {
+        std::string line;
+        std::string command;
+        std::string argument;
 
-    while (true) {
-        // Read full line input
-        getline(cin, line);
-
-        // Skip empty input
-        if (line.empty()) continue;
-
-        // Parse input
-        stringstream ss(line); // It is used to extract words in the string line, one by one, using '>>' 
-        ss >> command >> argument; // extracts one word, at a time
-
-        // Exit condition
-        if (command == "exit") {
-            break;
-        }
-
-        // mkdir command
-        if (command == "mkdir") { // mkdir argumentName
-            if (argument.empty()) {  // argument cannot be empty
-                cout << "Error: Folder name required" << endl;
-            } else {
-                virtualFiles.push_back(argument);
-                cout << "Created folder: " << argument << endl;
+        while (true) {
+            if (!std::getline(std::cin, line)) {
+                break;
             }
-        }
 
-        // ls command
-        else if (command == "ls") {
-            if (virtualFiles.empty()) {
-                cout << "Directory is empty." << endl;
-            } else {
-                for (const auto &file : virtualFiles) {
-                    cout << file << " ";
+            if (line.empty()) {
+                continue;
+            }
+
+            std::stringstream stream(line);
+            stream >> command >> argument;
+
+            if (command == "exit") {
+                break;
+            }
+
+            if (command == "mkdir") {
+                if (argument.empty()) {
+                    std::cout << "Error: Folder name required\n";
+                } else {
+                    virtualFiles.push_back(argument);
+                    std::cout << "Created folder: " << argument << '\n';
                 }
-                cout << endl;
+            } else if (command == "ls") {
+                if (virtualFiles.empty()) {
+                    std::cout << "Directory is empty.\n";
+                } else {
+                    for (const std::string& fileName : virtualFiles) {
+                        std::cout << fileName << ' ';
+                    }
+                    std::cout << '\n';
+                }
+            } else {
+                std::cout << "Command not recognized: " << command << '\n';
             }
-        }
 
-        // Unknown command
-        else {
-            cout << "Command not recognized: " << command << endl;
+            std::cout << "===END_OF_COMMAND===\n";
         }
-
-        // Signal end of command (important for your frontend)
-        cout << "===END_OF_COMMAND===" << endl;
+    } catch (const std::exception& exception) {
+        std::cout << "Engine error: " << exception.what() << '\n';
+        return 1;
     }
 
     return 0;

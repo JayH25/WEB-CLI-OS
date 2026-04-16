@@ -6,31 +6,35 @@
 
 ## 📦 Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React.js |
-| Backend | Node.js + Express |
-| Engine | C++ |
-| Real-time | WebSocket (Socket.io) |
-| Storage | File system / SQLite |
-| Deployment | Docker + CI/CD |
+| Layer      | Technology            |
+| ---------- | --------------------- |
+| Frontend   | React.js              |
+| Backend    | Node.js + Express     |
+| Engine     | C++                   |
+| Real-time  | WebSocket (Socket.io) |
+| Storage    | File system / SQLite  |
+| Deployment | Docker + CI/CD        |
 
 ---
 
 ## ⚙️ Setup
 
 ### Prerequisites
+
 - Node.js (v14 or higher)
 - npm or yarn
 - C++ compiler (`g++`)
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/JayH25/WEB-CLI-OS.git
 cd WEB-CLI-OS
+npm install
 ```
 
 ### 2. Backend Setup
+
 ```bash
 cd backend
 npm install
@@ -39,6 +43,7 @@ cp .env.example .env
 ```
 
 ### 3. Frontend Setup
+
 ```bash
 cd ../frontend
 npm install
@@ -47,12 +52,14 @@ cp .env.example .env.local
 ```
 
 ### 4. Engine Setup
+
 ```bash
 cd ../engine
 g++ main.cpp -o main
 ```
 
 ### 5. Running the Application
+
 ```bash
 # Start Backend (from /backend)
 npm run dev
@@ -90,16 +97,18 @@ npm start
 > This roadmap goes phase by phase, feature by feature — from the most basic foundation all the way to an advanced, production-ready, resume-worthy OS. Every checkpoint builds on the one before it. Do not skip ahead.
 >
 > **Legend:**
+>
 > - `[ ]` — Not started
 > - `[x]` — Completed
 
 ---
 
-## 📋 PHASE 0 — Project Setup & Workflow  *(Week 1)*
+## 📋 PHASE 0 — Project Setup & Workflow _(Week 1)_
 
 > Before writing a single line of product code, get your team workflow right. This saves weeks of pain later.
 
 ### 0.1 — Git & Branching Strategy
+
 - [ ] Set up a `main` branch (production-ready only) and a `dev` branch (active development)
 - [ ] Agree on a branch naming convention: `feature/feature-name`, `fix/bug-name`, `chore/task-name`
 - [ ] Write a `CONTRIBUTING.md` explaining how to open a PR, review, and merge
@@ -108,6 +117,7 @@ npm start
 - [ ] Create a GitHub Project board (Kanban) with columns: `Backlog`, `In Progress`, `Review`, `Done`
 
 ### 0.2 — Code Quality Tooling
+
 - [ ] Add **ESLint** to both frontend and backend for consistent code style
 - [ ] Add **Prettier** for auto-formatting
 - [ ] Add `.editorconfig` to standardize indentation, line endings, etc.
@@ -115,6 +125,7 @@ npm start
 - [ ] Write a root-level `package.json` with scripts: `npm run dev` (starts everything), `npm run lint`, `npm run build`
 
 ### 0.3 — Project Architecture Decision
+
 - [ ] Finalize and document the folder structure for frontend, backend, and engine
 - [ ] Decide and document what the C++ engine is responsible for vs the Node backend
 - [ ] Draw and commit an architecture diagram to the repo (can be a simple `.png` or ASCII)
@@ -122,11 +133,12 @@ npm start
 
 ---
 
-## 📋 PHASE 1 — Core Terminal UI  *(Weeks 2–4)*
+## 📋 PHASE 1 — Core Terminal UI _(Weeks 2–4)_
 
 > Build the visual heart of the OS — the terminal itself. No logic yet, just the interface.
 
 ### 1.1 — Basic Terminal Layout
+
 - [ ] Create a full-screen terminal component in React with a black background
 - [ ] Add a prompt line at the bottom: `user@web-os:~$` followed by a blinking cursor
 - [ ] Display the prompt as text (not editable) with an adjacent text input field for user typing
@@ -135,6 +147,7 @@ npm start
 - [ ] Make the terminal scroll automatically to the bottom when new output is added
 
 ### 1.2 — Terminal Styling
+
 - [ ] Use a monospace font throughout (e.g., `JetBrains Mono`, `Fira Code`, or `Courier New`)
 - [ ] Style output lines: use different colors for command input (green/white), errors (red), and system messages (yellow/cyan)
 - [ ] Add a blinking cursor animation using CSS keyframes
@@ -142,6 +155,7 @@ npm start
 - [ ] Add a fake title bar at the top with: OS name, minimize/maximize/close buttons (decorative for now), and a clock showing current time
 
 ### 1.3 — Command History (Client-Side Only)
+
 - [ ] Store all previously entered commands in an array in React state
 - [ ] On pressing `Arrow Up`, replace the current input with the previous command
 - [ ] On pressing `Arrow Down`, move forward through command history
@@ -149,6 +163,7 @@ npm start
 - [ ] Display history with the `history` command (outputs a numbered list of past commands)
 
 ### 1.4 — Basic Output System
+
 - [ ] Create a reusable `OutputLine` component with props: `text`, `type` (`input | output | error | system`)
 - [ ] Store all output lines in a React state array and render them top-to-bottom
 - [ ] Add a `clear` command that wipes all output from the terminal display
@@ -156,11 +171,12 @@ npm start
 
 ---
 
-## 📋 PHASE 2 — Backend Foundation & Command Routing  *(Weeks 4–6)*
+## 📋 PHASE 2 — Backend Foundation & Command Routing _(Weeks 4–6)_
 
 > Connect the terminal to the backend. Every command typed goes to the server, and the server sends back a response.
 
 ### 2.1 — Express Backend Basics
+
 - [ ] Ensure Express server is running and listening on port 5000
 - [ ] Add a `POST /command` endpoint that accepts a JSON body `{ command: "ls" }` and returns `{ output: "..." }`
 - [ ] Add a `GET /ping` health check endpoint that returns `{ status: "ok" }` — useful for debugging
@@ -168,6 +184,7 @@ npm start
 - [ ] Add request logging middleware using `morgan` so you can see every request in your terminal
 
 ### 2.2 — Command Parser
+
 - [ ] Create a `commandParser.js` module in the backend
 - [ ] Parse a raw command string into: `{ name, args, flags }` (e.g., `"ls -la /home"` → `{ name: "ls", args: ["/home"], flags: ["-la"] }`)
 - [ ] Handle quoted strings: `echo "hello world"` should treat `hello world` as one argument
@@ -175,6 +192,7 @@ npm start
 - [ ] Write unit tests for the parser using Jest (test at least 10 different input formats)
 
 ### 2.3 — Command Registry
+
 - [ ] Create a `commands/` folder in the backend
 - [ ] Create a `registry.js` file that maps command names to their handler functions
 - [ ] Each handler receives `{ args, flags, session }` and returns `{ output, error }`
@@ -188,6 +206,7 @@ npm start
   - [ ] `uname` — returns OS name and version info
 
 ### 2.4 — Frontend ↔ Backend Connection
+
 - [ ] In React, replace the local command handler with an `axios` (or `fetch`) call to `POST /command`
 - [ ] Show a loading indicator (e.g., spinner after the prompt) while waiting for the server response
 - [ ] Display the server's response as a new output line in the terminal
@@ -196,11 +215,12 @@ npm start
 
 ---
 
-## 📋 PHASE 3 — Virtual File System  *(Weeks 6–10)*
+## 📋 PHASE 3 — Virtual File System _(Weeks 6–10)_
 
 > This is the most important and complex part of the OS. You're building a fake file system that lives in memory (and later on disk) on the server.
 
 ### 3.1 — File System Data Structure (In-Memory)
+
 - [ ] Design a tree data structure to represent the file system:
   ```
   {
@@ -222,6 +242,7 @@ npm start
 - [ ] Store the current working directory per-session (start at `/home/user`)
 
 ### 3.2 — File System Commands
+
 Implement each of the following commands fully — they must work exactly like their Unix counterparts:
 
 - [ ] **`pwd`** — prints the current working directory path
@@ -273,6 +294,7 @@ Implement each of the following commands fully — they must work exactly like t
   - [ ] `wc -c filename` — count characters
 
 ### 3.3 — File Permissions
+
 - [ ] Add `permissions`, `owner`, and `group` fields to each file/directory node
 - [ ] Use Unix-style permission strings: `rwxr-xr-x`
 - [ ] Implement **`chmod`** — change file permissions
@@ -282,6 +304,7 @@ Implement each of the following commands fully — they must work exactly like t
 - [ ] Enforce permissions: when a command tries to read/write/execute, check if the current user has permission, and return a `Permission denied` error if not
 
 ### 3.4 — File System Persistence
+
 - [ ] Serialize the in-memory file system tree to a JSON file on disk after every write operation
 - [ ] Load the file system from this JSON file when the server starts
 - [ ] Implement a `save` and `load` mechanism so file system state survives server restarts
@@ -290,11 +313,12 @@ Implement each of the following commands fully — they must work exactly like t
 
 ---
 
-## 📋 PHASE 4 — Real-Time Communication with WebSockets  *(Weeks 9–11)*
+## 📋 PHASE 4 — Real-Time Communication with WebSockets _(Weeks 9–11)_
 
 > Replace the HTTP request/response model with WebSockets for a real terminal feel — instant, streaming output.
 
 ### 4.1 — WebSocket Setup
+
 - [ ] Install `socket.io` on the backend and `socket.io-client` on the frontend
 - [ ] Replace the `POST /command` HTTP call with a WebSocket event: `emit('command', { input })` from the client
 - [ ] On the server, listen for `'command'` events and emit `'output'` events back with the response
@@ -302,6 +326,7 @@ Implement each of the following commands fully — they must work exactly like t
 - [ ] Show a small connection status indicator in the UI (green dot = connected, red = disconnected)
 
 ### 4.2 — Streaming Output
+
 - [ ] For long-running commands, stream output line-by-line instead of sending everything at once
 - [ ] Implement an `'output:stream'` event for line-by-line streaming and `'output:end'` to signal completion
 - [ ] The frontend should append each streamed line to the terminal as it arrives
@@ -309,6 +334,7 @@ Implement each of the following commands fully — they must work exactly like t
 - [ ] Test streaming with the `find` command on a large directory — output should appear line by line
 
 ### 4.3 — Session Management
+
 - [ ] Assign a unique session ID to each WebSocket connection
 - [ ] Store per-session state on the server: current working directory, environment variables, command history
 - [ ] When the client disconnects and reconnects (e.g., refresh), restore the session state if the session ID is still valid
@@ -316,11 +342,12 @@ Implement each of the following commands fully — they must work exactly like t
 
 ---
 
-## 📋 PHASE 5 — Shell Features  *(Weeks 11–14)*
+## 📋 PHASE 5 — Shell Features _(Weeks 11–14)_
 
 > Add the power features that make a shell actually useful.
 
 ### 5.1 — Piping
+
 - [ ] Implement the pipe operator `|` so output of one command becomes input of the next
 - [ ] Example: `cat file.txt | grep "hello" | wc -l` should work end-to-end
 - [ ] Parse the full command string to detect `|` separators before routing to handlers
@@ -328,6 +355,7 @@ Implement each of the following commands fully — they must work exactly like t
 - [ ] Handle errors in pipelines: if one command fails, stop the pipeline and show the error
 
 ### 5.2 — Redirection
+
 - [ ] Implement `>` — redirect command output to a file (overwrite)
   - [ ] `echo "hello" > file.txt`
 - [ ] Implement `>>` — redirect command output to a file (append)
@@ -338,6 +366,7 @@ Implement each of the following commands fully — they must work exactly like t
 - [ ] Parse redirection operators before executing commands
 
 ### 5.3 — Environment Variables
+
 - [ ] Store a per-session environment variable map: `{ PATH: "/bin:/usr/bin", HOME: "/home/user", USER: "user" }`
 - [ ] Implement **`export VAR=value`** — set an environment variable
 - [ ] Implement **`unset VAR`** — remove an environment variable
@@ -346,6 +375,7 @@ Implement each of the following commands fully — they must work exactly like t
 - [ ] Expand `~` to the home directory path in file paths
 
 ### 5.4 — Tab Completion
+
 - [ ] On pressing `Tab`, attempt to auto-complete the current word in the input
 - [ ] If the word is the first word (command name), complete from the list of known commands
 - [ ] If the word is a file/directory path, complete from the virtual file system
@@ -354,6 +384,7 @@ Implement each of the following commands fully — they must work exactly like t
 - [ ] If there are no matches, do nothing (no bell/beep)
 
 ### 5.5 — Command Chaining
+
 - [ ] Implement `&&` — run the second command only if the first succeeds
   - [ ] `mkdir newdir && cd newdir`
 - [ ] Implement `||` — run the second command only if the first fails
@@ -362,6 +393,7 @@ Implement each of the following commands fully — they must work exactly like t
   - [ ] `echo "a" ; echo "b"`
 
 ### 5.6 — Aliases
+
 - [ ] Implement **`alias`** — create a command alias
   - [ ] `alias ll="ls -la"`
   - [ ] `alias` with no arguments lists all current aliases
@@ -371,11 +403,12 @@ Implement each of the following commands fully — they must work exactly like t
 
 ---
 
-## 📋 PHASE 6 — C++ Engine Integration  *(Weeks 12–15)*
+## 📋 PHASE 6 — C++ Engine Integration _(Weeks 12–15)_
 
 > The C++ engine is your secret weapon. Use it for compute-intensive or low-level operations that are better done in native code.
 
 ### 6.1 — Engine ↔ Backend Communication
+
 - [ ] Define a clean input/output protocol for the engine: take input via `stdin`, output to `stdout`, errors to `stderr`
 - [ ] Use Node's `child_process.spawn()` to launch the C++ engine from the backend
 - [ ] Pass command name and arguments to the engine as command-line arguments or via stdin JSON
@@ -383,6 +416,7 @@ Implement each of the following commands fully — they must work exactly like t
 - [ ] Handle engine crashes gracefully: detect non-zero exit codes and return an error to the user
 
 ### 6.2 — Engine-Powered Commands
+
 Implement the following directly in C++ for performance and to demonstrate the language in your stack:
 
 - [ ] **Text processing engine** — a fast line-by-line processor used by `grep`, `sed`, and `awk`-like commands
@@ -403,6 +437,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] **`base64`** — encode/decode strings: `base64 encode "hello"` and `base64 decode "aGVsbG8="`
 
 ### 6.3 — Engine Build System
+
 - [ ] Write a `Makefile` for the C++ engine with targets: `make`, `make clean`, `make debug`
 - [ ] Add compiler flags: `-O2` for release, `-g` for debug, `-Wall -Wextra` for warnings
 - [ ] Add the engine build step to the root-level `npm run build` script
@@ -410,11 +445,12 @@ Implement the following directly in C++ for performance and to demonstrate the l
 
 ---
 
-## 📋 PHASE 7 — User Authentication & Multi-User Support  *(Weeks 14–16)*
+## 📋 PHASE 7 — User Authentication & Multi-User Support _(Weeks 14–16)_
 
 > Turn the single-user prototype into a real multi-user system.
 
 ### 7.1 — User Accounts
+
 - [ ] Set up a SQLite database in the backend using `better-sqlite3`
 - [ ] Create a `users` table with columns: `id`, `username`, `password_hash`, `home_dir`, `created_at`
 - [ ] Hash passwords using `bcrypt` — never store plain-text passwords
@@ -425,6 +461,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Implement **`users`** — list all registered users
 
 ### 7.2 — Login System
+
 - [ ] Create a login screen that appears before the terminal: ask for username and password
 - [ ] On login, verify credentials against the database and start a session
 - [ ] Issue a JWT token on successful login and store it in the client (memory or `sessionStorage`)
@@ -432,6 +469,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Implement **`logout`** — ends the current session and shows the login screen
 
 ### 7.3 — Per-User File System
+
 - [ ] Each user gets their own home directory `/home/username/` in the virtual file system
 - [ ] Files and directories have an `owner` field tied to a user
 - [ ] Enforce ownership: only the owner (or root) can delete/modify their files
@@ -439,6 +477,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] `whoami` now returns the actual logged-in username
 
 ### 7.4 — Sudo / Privilege Escalation
+
 - [ ] Implement **`sudo command`** — run a command as root (prompts for the user's own password)
 - [ ] Add a `sudoers` list (stored in the database) of users who are allowed to use `sudo`
 - [ ] Commands that require root: `adduser`, `chown`, accessing `/etc/` files, etc.
@@ -446,11 +485,12 @@ Implement the following directly in C++ for performance and to demonstrate the l
 
 ---
 
-## 📋 PHASE 8 — Process Management  *(Weeks 15–17)*
+## 📋 PHASE 8 — Process Management _(Weeks 15–17)_
 
 > Simulate a real OS process system.
 
 ### 8.1 — Process Table
+
 - [ ] Create a `ProcessManager` class on the backend with a process table (in-memory map)
 - [ ] Each process has: `pid`, `command`, `args`, `status` (`running | sleeping | stopped | zombie`), `owner`, `startedAt`, `cpuUsage`, `memUsage` (simulated random values)
 - [ ] When a command is executed, create a process entry for it and remove it when done
@@ -459,6 +499,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
   - [ ] `ps aux` — all processes for all users (root only)
 
 ### 8.2 — Background Jobs
+
 - [ ] Implement **`&`** at the end of a command to run it in the background
   - [ ] `sleep 10 &` — runs sleep in the background, immediately returns to the prompt
 - [ ] Implement **`jobs`** — list all background jobs in the current session
@@ -467,6 +508,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Implement `Ctrl+Z` to suspend the foreground job
 
 ### 8.3 — Signals & Kill
+
 - [ ] Implement **`kill PID`** — terminate a process by PID
 - [ ] Implement **`kill -9 PID`** — force kill
 - [ ] Implement **`killall processname`** — kill all processes with that name
@@ -474,11 +516,12 @@ Implement the following directly in C++ for performance and to demonstrate the l
 
 ---
 
-## 📋 PHASE 9 — Networking Commands  *(Weeks 16–18)*
+## 📋 PHASE 9 — Networking Commands _(Weeks 16–18)_
 
 > Add internet-aware commands that make your OS feel connected.
 
 ### 9.1 — HTTP Commands
+
 - [ ] Implement **`curl URL`** — make an HTTP GET request to a URL and display the response body
   - [ ] `curl https://api.example.com/data`
   - [ ] `curl -X POST -d "body" URL` — POST request with a body
@@ -487,6 +530,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Both commands are executed on the backend (the server makes the request, not the browser)
 
 ### 9.2 — Network Info Commands
+
 - [ ] Implement **`ping hostname`** — send a ping and report latency (use backend to actually ping)
 - [ ] Implement **`ifconfig`** — show simulated network interface info (IP, MAC address)
 - [ ] Implement **`netstat`** — show simulated active connections
@@ -494,6 +538,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Implement **`whois domain`** — fetch WHOIS info for a domain
 
 ### 9.3 — Package Manager (Simulated)
+
 - [ ] Implement a fake package manager: **`pkg`** or **`apt`**
   - [ ] `pkg install cowsay` — "installs" a package (adds it to an installed list)
   - [ ] `pkg remove cowsay` — removes a package
@@ -506,16 +551,18 @@ Implement the following directly in C++ for performance and to demonstrate the l
 
 ---
 
-## 📋 PHASE 10 — Shell Scripting  *(Weeks 17–19)*
+## 📋 PHASE 10 — Shell Scripting _(Weeks 17–19)_
 
 > Let users write and execute shell scripts — the culmination of all your shell features.
 
 ### 10.1 — Script Execution
+
 - [ ] Implement **`sh filename.sh`** or **`./filename.sh`** — execute a shell script file
 - [ ] Read the file line by line and execute each line as a command
 - [ ] Scripts should support all previously implemented features: piping, redirection, variables, etc.
 
 ### 10.2 — Control Flow
+
 - [ ] Implement **`if / then / else / fi`** blocks in scripts:
   ```sh
   if [ "$x" = "hello" ]; then
@@ -539,6 +586,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
   ```
 
 ### 10.3 — Script Variables & Functions
+
 - [ ] Support variable assignment in scripts: `x=5`
 - [ ] Support arithmetic: `result=$((x + 3))`
 - [ ] Support function definitions:
@@ -558,22 +606,25 @@ Implement the following directly in C++ for performance and to demonstrate the l
 
 ---
 
-## 📋 PHASE 11 — Advanced UI & UX Features  *(Weeks 18–20)*
+## 📋 PHASE 11 — Advanced UI & UX Features _(Weeks 18–20)_
 
 > Polish the front-end into something that looks and feels incredible.
 
 ### 11.1 — Multiple Terminal Tabs
+
 - [ ] Add the ability to open multiple terminal sessions in tabs (like a browser)
 - [ ] Each tab has its own independent session (its own CWD, history, env variables)
 - [ ] Implement `Ctrl+T` to open a new tab and `Ctrl+W` to close the current one
 - [ ] Show tab titles that update to reflect the current directory
 
 ### 11.2 — Split Panes
+
 - [ ] Allow splitting the terminal horizontally or vertically (like tmux)
 - [ ] Each pane is an independent terminal session
 - [ ] Implement keyboard shortcuts to switch focus between panes
 
 ### 11.3 — Themes & Customization
+
 - [ ] Create at least 5 built-in color themes:
   - [ ] Dark (default — black bg, green text)
   - [ ] Light (white bg, dark text)
@@ -586,23 +637,26 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Add font size controls: `Ctrl++` to increase, `Ctrl+-` to decrease
 
 ### 11.4 — File Explorer Sidebar (Optional but Impressive)
+
 - [ ] Add a collapsible sidebar showing the virtual file system tree
 - [ ] Clicking a file in the sidebar runs `cat` on it in the terminal
 - [ ] Clicking a folder in the sidebar runs `cd` on it
 - [ ] The sidebar updates in real-time as the file system changes
 
 ### 11.5 — Search in Terminal Output
+
 - [ ] Implement `Ctrl+F` to open a search bar within the terminal output
 - [ ] Highlight all matches in the output
 - [ ] Allow navigating between matches with `Enter` / `Shift+Enter`
 
 ---
 
-## 📋 PHASE 12 — Text Editor  *(Weeks 19–20)*
+## 📋 PHASE 12 — Text Editor _(Weeks 19–20)_
 
 > Every real OS needs a text editor. Build one that runs inside the terminal.
 
 ### 12.1 — Basic Editor
+
 - [ ] Implement **`nano filename`** (or **`edit filename`**) — opens a full-screen editor inside the terminal
 - [ ] The editor takes over the entire terminal display while open
 - [ ] Show the file content as editable text in the center
@@ -610,6 +664,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] On save, write the content back to the virtual file system
 
 ### 12.2 — Editor Features
+
 - [ ] Line numbers on the left side
 - [ ] Display the filename and modification status (`*` if unsaved changes) in the top bar
 - [ ] `Ctrl+W` to search within the editor
@@ -619,11 +674,12 @@ Implement the following directly in C++ for performance and to demonstrate the l
 
 ---
 
-## 📋 PHASE 13 — System Monitor & Dashboard  *(Week 20)*
+## 📋 PHASE 13 — System Monitor & Dashboard _(Week 20)_
 
 > Make the OS feel alive with real-time system stats.
 
 ### 13.1 — System Commands
+
 - [ ] Implement **`top`** — an interactive real-time process viewer (updates every second)
   - [ ] Shows: PID, USER, CPU%, MEM%, TIME, COMMAND
   - [ ] Press `q` to quit
@@ -635,6 +691,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Implement **`uptime`** — show how long the server has been running and server load
 
 ### 13.2 — Dashboard (`htop`-style)
+
 - [ ] Implement **`htop`** — a rich, full-screen system monitor with:
   - [ ] CPU usage bar (simulated)
   - [ ] Memory usage bar (simulated)
@@ -644,11 +701,12 @@ Implement the following directly in C++ for performance and to demonstrate the l
 
 ---
 
-## 📋 PHASE 14 — Testing & Code Quality  *(Ongoing, especially Weeks 18–21)*
+## 📋 PHASE 14 — Testing & Code Quality _(Ongoing, especially Weeks 18–21)_
 
 > A project is only as good as its tests. This is what separates a side project from a professional one.
 
 ### 14.1 — Backend Tests
+
 - [ ] Set up Jest for the backend
 - [ ] Write unit tests for the command parser (edge cases, special characters, pipes, flags)
 - [ ] Write unit tests for every file system method (create, delete, move, copy, permissions)
@@ -658,6 +716,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Add a `npm run test` script and run it in CI
 
 ### 14.2 — Frontend Tests
+
 - [ ] Set up React Testing Library
 - [ ] Write tests for the terminal component: renders correctly, handles input, displays output
 - [ ] Write tests for the command history navigation (up/down arrows)
@@ -665,17 +724,19 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Add `npm run test` to the frontend
 
 ### 14.3 — Engine Tests
+
 - [ ] Write C++ unit tests using a framework like Google Test or simple assertions
 - [ ] Test each engine command with known inputs and expected outputs
 - [ ] Add engine tests to the build pipeline
 
 ---
 
-## 📋 PHASE 15 — Deployment & DevOps  *(Weeks 20–22)*
+## 📋 PHASE 15 — Deployment & DevOps _(Weeks 20–22)_
 
 > Get it live on the internet. A project that only runs on localhost is invisible to recruiters.
 
 ### 15.1 — Dockerization
+
 - [ ] Write a `Dockerfile` for the backend
 - [ ] Write a `Dockerfile` for the frontend
 - [ ] Write a `docker-compose.yml` that starts both services with one command: `docker compose up`
@@ -683,12 +744,14 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Test that the Dockerized app works exactly like the local version
 
 ### 15.2 — CI/CD Pipeline
+
 - [ ] Set up GitHub Actions with a workflow file (`.github/workflows/ci.yml`)
 - [ ] On every push to `dev`: run lint, run tests, report results
 - [ ] On every merge to `main`: run lint, run tests, build Docker images, and deploy
 - [ ] Add a status badge to the top of this README showing the current CI status
 
 ### 15.3 — Cloud Deployment
+
 - [ ] Deploy the backend to a cloud provider (Railway, Render, or a VPS)
 - [ ] Deploy the frontend to Vercel or Netlify
 - [ ] Set up a custom domain (even a free one like `your-name.up.railway.app`)
@@ -697,6 +760,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Add a health check URL that monitoring services can ping
 
 ### 15.4 — Monitoring & Logging
+
 - [ ] Add structured logging on the backend using `winston` or `pino` (JSON format)
 - [ ] Log every command execution: timestamp, session ID, user, command, execution time, success/failure
 - [ ] Set up basic uptime monitoring (e.g., UptimeRobot — it's free) to alert you if the server goes down
@@ -704,28 +768,32 @@ Implement the following directly in C++ for performance and to demonstrate the l
 
 ---
 
-## 📋 PHASE 16 — Final Polish & Resume Banger Features  *(Weeks 21–22)*
+## 📋 PHASE 16 — Final Polish & Resume Banger Features _(Weeks 21–22)_
 
 > These are the wow features that make someone look at your GitHub and say "this is real."
 
 ### 16.1 — Multiplayer / Collaborative Mode
+
 - [ ] Allow two users to join the same terminal session and see each other's input/output in real-time
 - [ ] Show a colored username label next to each command so you can tell who typed what
 - [ ] Implement **`share`** — generates a shareable session URL
 - [ ] Implement **`who`** — shows who else is currently logged into the system
 
 ### 16.2 — AI Assistant Command
+
 - [ ] Implement **`ask "question"`** — sends a question to an AI API (OpenAI/Anthropic) and prints the response in the terminal
 - [ ] Implement **`explain command`** — explains what a shell command does using the AI
 - [ ] Implement **`fix`** (after a failed command) — asks the AI to suggest what went wrong
 - [ ] Show a spinning loader while waiting for the AI response
 
 ### 16.3 — Startup Script & `.profile`
+
 - [ ] On login, automatically run `/home/user/.profile` if it exists
 - [ ] Users can customize their prompt, set aliases, and export variables in `.profile`
 - [ ] Show a custom welcome message defined in `.profile`
 
 ### 16.4 — Easter Eggs & Fun
+
 - [ ] Implement **`matrix`** — displays a Matrix-style raining green characters animation in the terminal
 - [ ] Implement **`rickroll`** — you know what to do
 - [ ] Implement **`banner`** — displays the WEB-CLI-OS ASCII art logo
@@ -733,6 +801,7 @@ Implement the following directly in C++ for performance and to demonstrate the l
 - [ ] Implement **`sl`** — a train rolls across the terminal when you mistype `ls` (punishes typos)
 
 ### 16.5 — Documentation
+
 - [ ] Write a full user manual: `man commandname` — displays the manual page for any command
 - [ ] Each man page should document: name, synopsis, description, options/flags, examples
 - [ ] Implement **`man`** — the command to read manual pages from within the terminal
@@ -759,37 +828,37 @@ Before calling this project done, make sure all of the following are true:
 
 ## 👥 Team
 
-| Member | Role |
-|--------|------|
-| TBD | Frontend Lead |
-| TBD | Backend Lead |
-| TBD | Engine (C++) Lead |
-| TBD | DevOps / Deployment Lead |
+| Member | Role                     |
+| ------ | ------------------------ |
+| TBD    | Frontend Lead            |
+| TBD    | Backend Lead             |
+| TBD    | Engine (C++) Lead        |
+| TBD    | DevOps / Deployment Lead |
 
 ---
 
 ## 📅 Timeline Overview
 
-| Phase | Focus | Target Timeline |
-|-------|-------|----------------|
-| Phase 0 | Setup & Workflow | Week 1 |
-| Phase 1 | Terminal UI | Weeks 2–4 |
-| Phase 2 | Backend & Commands | Weeks 4–6 |
-| Phase 3 | Virtual File System | Weeks 6–10 |
-| Phase 4 | WebSockets | Weeks 9–11 |
-| Phase 5 | Shell Features | Weeks 11–14 |
-| Phase 6 | C++ Engine | Weeks 12–15 |
-| Phase 7 | Auth & Multi-User | Weeks 14–16 |
-| Phase 8 | Process Management | Weeks 15–17 |
-| Phase 9 | Networking Commands | Weeks 16–18 |
-| Phase 10 | Shell Scripting | Weeks 17–19 |
-| Phase 11 | Advanced UI | Weeks 18–20 |
-| Phase 12 | Text Editor | Weeks 19–20 |
-| Phase 13 | System Monitor | Week 20 |
-| Phase 14 | Testing | Ongoing |
-| Phase 15 | Deployment & CI/CD | Weeks 20–22 |
-| Phase 16 | Polish & Extras | Weeks 21–22 |
+| Phase    | Focus               | Target Timeline |
+| -------- | ------------------- | --------------- |
+| Phase 0  | Setup & Workflow    | Week 1          |
+| Phase 1  | Terminal UI         | Weeks 2–4       |
+| Phase 2  | Backend & Commands  | Weeks 4–6       |
+| Phase 3  | Virtual File System | Weeks 6–10      |
+| Phase 4  | WebSockets          | Weeks 9–11      |
+| Phase 5  | Shell Features      | Weeks 11–14     |
+| Phase 6  | C++ Engine          | Weeks 12–15     |
+| Phase 7  | Auth & Multi-User   | Weeks 14–16     |
+| Phase 8  | Process Management  | Weeks 15–17     |
+| Phase 9  | Networking Commands | Weeks 16–18     |
+| Phase 10 | Shell Scripting     | Weeks 17–19     |
+| Phase 11 | Advanced UI         | Weeks 18–20     |
+| Phase 12 | Text Editor         | Weeks 19–20     |
+| Phase 13 | System Monitor      | Week 20         |
+| Phase 14 | Testing             | Ongoing         |
+| Phase 15 | Deployment & CI/CD  | Weeks 20–22     |
+| Phase 16 | Polish & Extras     | Weeks 21–22     |
 
 ---
 
-> *Built with 🔥 by a team of 4 over 4–5 months. Every checkbox checked is one step closer to something legendary.*
+> _Built with 🔥 by a team of 4 over 4–5 months. Every checkbox checked is one step closer to something legendary._
