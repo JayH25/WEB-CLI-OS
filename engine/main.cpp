@@ -7,8 +7,8 @@
 namespace {
 std::vector<std::string> virtualFiles;
 }  // namespace
-
-auto main() -> int {
+// NOLINTNEXTLINE(readability-function-cognitive-complexity, modernize-use-trailing-return-type)
+int main() {
     try {
         std::string line;
         std::string command;

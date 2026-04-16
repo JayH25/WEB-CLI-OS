@@ -19,7 +19,7 @@ test('renders the terminal prompt and echoes submitted commands', async () => {
   const input = screen.getByLabelText('Terminal command input');
 
   fireEvent.change(input, { target: { value: 'help' } });
-  fireEvent.submit(input.closest('form'));
+  fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
   expect(screen.getByText('user@web-os:~$ help')).toBeInTheDocument();
   expect(input).toHaveValue('');
