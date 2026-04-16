@@ -24,7 +24,10 @@ auto main() -> int {
             }
 
             std::stringstream stream(line);
-            stream >> command >> argument;
+            stream >> command;
+            if (!(stream >> argument)) {
+                argument = "";
+            }
 
             if (command == "exit") {
                 break;

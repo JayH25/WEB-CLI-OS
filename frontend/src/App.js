@@ -1,103 +1,95 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import './App.css';
+
+const PROMPT = 'user@web-os:~$';
 
 function App() {
   const [input, setInput] = useState('');
-  // History will store an array of everything typed and answered
   const [history, setHistory] = useState([
-    { type: 'output', text: 'Welcome to Web-CLI-OS v1.0' },
-    { type: 'output', text: 'Type "help" to see available commands.' }
+    { type: 'system', text: 'Welcome to Web-CLI-OS v1.0' },
+    { type: 'system', text: 'Type "help" to see available commands.' }
   ]);
-  
-  // This helps us auto-scroll to the bottom
   const bottomRef = useRef(null);
+  const inputRef = useRef(null);
 
-  // Auto-scroll whenever history changes
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (typeof bottomRef.current?.scrollIntoView === 'function') {
+      bottomRef.current.scrollIntoView({ block: 'end' });
+    }
   }, [history]);
 
   const executeCommand = async () => {
-    if (!input.trim()) return;
+    const trimmedInput = input.trim();
 
-    // 1. Add the user's command to the screen immediately
-    const newHistory = [...history, { type: 'input', text: `root@nexus-os:~$ ${input}` }];
-    setHistory(newHistory);
-    const commandToSend = input;
-    setInput(''); // Clear the input box
+    if (!trimmedInput) {
+      return;
+    }
+
+    setHistory((prev) => [...prev, { type: 'input', text: `${PROMPT} ${trimmedInput}` }]);
+    setInput('');
 
     try {
-      // 2. Send it to your Node backend
       const response = await fetch('http://localhost:5000/command', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: commandToSend })
+        body: JSON.stringify({ text: trimmedInput })
       });
-      
       const data = await response.json();
-      
-      // 3. Add the C++ answer to the screen
-      setHistory((prev) => [...prev, { type: 'output', text: data.output || data.error }]);
-    } catch (error) {
-      setHistory((prev) => [...prev, { type: 'output', text: "Fatal Error: Cannot connect to Node server." }]);
-    }
-  };
+      const nextLine =
+        data.output
+          ? { type: 'output', text: data.output }
+          : data.error
+            ? { type: 'error', text: data.error }
+            : { type: 'system', text: 'Command completed with no output.' };
 
-  // Listen for the "Enter" key
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      executeCommand();
+      setHistory((prev) => [
+        ...prev,
+        nextLine
+      ]);
+    } catch (error) {
+      setHistory((prev) => [
+        ...prev,
+        { type: 'error', text: 'Fatal Error: Cannot connect to Node server.' }
+      ]);
     }
   };
 
   return (
-    <div style={{ 
-      backgroundColor: '#0a0a0a', 
-      color: '#00ff00', 
-      fontFamily: '"Courier New", Courier, monospace', 
-      height: '100vh', 
-      padding: '20px', 
-      boxSizing: 'border-box',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      
-      {/* The Terminal Screen area */}
-      <div style={{ flex: 1, overflowY: 'auto', marginBottom: '10px' }}>
+    <main className="terminal" onClick={() => inputRef.current?.focus()}>
+      <section className="terminal-output" aria-live="polite">
         {history.map((line, index) => (
-          <div key={index} style={{ 
-            marginBottom: '5px', 
-            color: line.type === 'input' ? '#00ff00' : '#a3a3a3',
-            whiteSpace: 'pre-wrap' 
-          }}>
+          <div
+            key={`${line.type}-${index}`}
+            className={`terminal-line terminal-line-${line.type}`}
+          >
             {line.text}
           </div>
         ))}
-        {/* Invisible element to help us scroll to the bottom */}
         <div ref={bottomRef} />
-      </div>
+      </section>
 
-      {/* The Input area */}
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <span style={{ marginRight: '10px', color: '#00ff00' }}>root@nexus-os:~$</span>
+      <form
+        className="terminal-prompt-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          executeCommand();
+        }}
+      >
+        <span className="terminal-prompt">{PROMPT}</span>
         <input
+          ref={inputRef}
+          className="terminal-input"
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onChange={(event) => setInput(event.target.value)}
+          aria-label="Terminal command input"
           autoFocus
-          style={{ 
-            background: 'transparent', 
-            border: 'none', 
-            color: '#00ff00', 
-            fontFamily: '"Courier New", Courier, monospace',
-            fontSize: '16px',
-            outline: 'none',
-            flex: 1
-          }}
+          autoComplete="off"
+          spellCheck="false"
         />
-      </div>
-
-    </div>
+        <span className="terminal-cursor" aria-hidden="true" />
+      </form>
+    </main>
   );
 }
 

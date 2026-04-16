@@ -1,38 +1,81 @@
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+.terminal {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: #000;
+  color: #ffffff;
+  font-family: "Courier New", Courier, monospace;
+  box-sizing: border-box;
+  padding: 20px;
+}
+
+.terminal-output {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.terminal-line {
+  margin-bottom: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.terminal-line-output {
+  color: #22c55e;
+}
+
+.terminal-line-input {
+  color: #ffffff;
+}
+
+.terminal-line-system {
+  color: #ffd60a;
+}
+
+.terminal-line-error {
+  color: #ef4444;
+}
+
+.terminal-prompt-row {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-.App-link {
-  color: #61dafb;
+.terminal-prompt {
+  color: #ffffff;
+  white-space: nowrap;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+.terminal-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #ffffff;
+  font: inherit;
+  caret-color: #ffffff;
+}
+
+.terminal-cursor {
+  width: 10px;
+  height: 1.1em;
+  background: #ffffff;
+  animation: terminal-blink 1s steps(1, end) infinite;
+}
+
+@keyframes terminal-blink {
+  0%,
+  49% {
+    opacity: 1;
   }
-  to {
-    transform: rotate(360deg);
+
+  50%,
+  100% {
+    opacity: 0;
   }
 }
