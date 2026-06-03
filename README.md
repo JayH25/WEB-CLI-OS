@@ -139,35 +139,35 @@ npm start
 
 ### 1.1 — Basic Terminal Layout
 
-- [ ] Create a full-screen terminal component in React with a black background
-- [ ] Add a prompt line at the bottom: `user@web-os:~$` followed by a blinking cursor
-- [ ] Display the prompt as text (not editable) with an adjacent text input field for user typing
-- [ ] On pressing `Enter`, capture the input and display it in the terminal output area above
-- [ ] Clear the input field after each command submission
-- [ ] Make the terminal scroll automatically to the bottom when new output is added
+- [x] Create a full-screen terminal component in React with a black background
+- [x] Add a prompt line at the bottom: `user@web-os:~$` followed by a blinking cursor
+- [x] Display the prompt as text (not editable) with an adjacent text input field for user typing
+- [x] On pressing `Enter`, capture the input and display it in the terminal output area above
+- [x] Clear the input field after each command submission
+- [x] Make the terminal scroll automatically to the bottom when new output is added
 
 ### 1.2 — Terminal Styling
 
-- [ ] Use a monospace font throughout (e.g., `JetBrains Mono`, `Fira Code`, or `Courier New`)
-- [ ] Style output lines: use different colors for command input (green/white), errors (red), and system messages (yellow/cyan)
-- [ ] Add a blinking cursor animation using CSS keyframes
-- [ ] Make the terminal container take up the full viewport with no scrollbars on the outer page
-- [ ] Add a fake title bar at the top with: OS name, minimize/maximize/close buttons (decorative for now), and a clock showing current time
+- [x] Use a monospace font throughout (e.g., `JetBrains Mono`, `Fira Code`, or `Courier New`)
+- [x] Style output lines: use different colors for command input (green/white), errors (red), and system messages (yellow/cyan)
+- [x] Add a blinking cursor animation using CSS keyframes
+- [x] Make the terminal container take up the full viewport with no scrollbars on the outer page
+- [x] Add a fake title bar at the top with: OS name, minimize/maximize/close buttons (decorative for now), and a clock showing current time
 
 ### 1.3 — Command History (Client-Side Only)
 
-- [ ] Store all previously entered commands in an array in React state
-- [ ] On pressing `Arrow Up`, replace the current input with the previous command
-- [ ] On pressing `Arrow Down`, move forward through command history
-- [ ] Keep history limited to the last 100 commands
-- [ ] Display history with the `history` command (outputs a numbered list of past commands)
+- [x] Store all previously entered commands in an array in React state
+- [x] On pressing `Arrow Up`, replace the current input with the previous command
+- [x] On pressing `Arrow Down`, move forward through command history
+- [x] Keep history limited to the last 100 commands
+- [x] Display history with the `history` command (outputs a numbered list of past commands)
 
 ### 1.4 — Basic Output System
 
-- [ ] Create a reusable `OutputLine` component with props: `text`, `type` (`input | output | error | system`)
-- [ ] Store all output lines in a React state array and render them top-to-bottom
-- [ ] Add a `clear` command that wipes all output from the terminal display
-- [ ] On app startup, print a welcome banner with the OS name, version, and a tagline
+- [x] Create a reusable `OutputLine` component with props: `text`, `type` (`input | output | error | system`)
+- [x] Store all output lines in a React state array and render them top-to-bottom
+- [x] Add a `clear` command that wipes all output from the terminal display
+- [x] On app startup, print a welcome banner with the OS name, version, and a tagline
 
 ---
 
