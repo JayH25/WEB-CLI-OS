@@ -3,10 +3,14 @@ const cors = require("cors"); // used for frontend to talk to backend , else bro
 const fs = require("fs"); // file system, used to check if files exists
 const path = require("path"); // used for file paths
 const { spawn } = require("child_process"); // used by node to run another program (here, cpp engine)
+const morgan = require("morgan");
 
 const app = express(); // creates backend app
 app.use(cors()); // establishes the connection
 app.use(express.json()); // allows backend to read json data from the 'req'
+app.use(morgan("dev")); // morgan dependency is used for, priting the POST and GET types of request.
+
+const PORT = process.env.PORT || 5000 ; 
 
 // Start engine once
 const engineCandidates = [
@@ -116,23 +120,45 @@ if (engineProcess) {
   });
 }
 
+app.get("/ping", (req, res) => {// This is a request made to check firstly, if server is even reachable or not, We will use this for denbuging.
+  res.json({status: "ok"})
+});
+
 // Handle request
-app.post("/command", (req, res) => {
-  if (!engineProcess) {
+app.post("/command", (req, res, next) => {
+  try {
+    if (!engineProcess) {
     res.status(503).json({
       output: "Engine is not available. Compile engine/main.cpp first.",
     });
     return;
   }
 
-  const text = req.body.text;
+  const {command} = req.body; 
 
-  currentResponseObject = res;
+  if(typeof(command) != "string" || !command.trim()) {
+    res.status(400).json({
+      error: "Proper command is required",
+    });
+    return ;
+  }
+    currentResponseObject = res;
 
-  // Send command to C++
-  engineProcess.stdin.write(text + "\n");
+    engineProcess.stdin.write(`${command.trim()}\n`);
+  } catch(error) {
+    next(error) ; // Instead of writing everything here, we throw the error to central error handler
+  }
+
 });
 
-app.listen(5000, () => {
-  console.log("Backend is running on port: 5000");
+app.use((err, req, res, next) => {
+  console.log(err) ; 
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    error: err.message || "Internal Server Error" ,
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`Backend is running on port: ${PORT} `);
 });

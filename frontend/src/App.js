@@ -44,7 +44,7 @@ function App() {
       const response = await fetch("http://localhost:5000/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmedInput }),
+        body: JSON.stringify({ command: trimmedInput }),
       });
       const data = await response.json();
       const nextLine = {
