@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+using namespace std;
 
 namespace {
 std::vector<std::string> virtualFiles;
@@ -45,7 +46,7 @@ int main() {
                     std::cout << "Directory is empty.\n";
                 } else {
                     for (const std::string& fileName : virtualFiles) {
-                        std::cout << fileName << ' ';
+                        std::cout << fileName << ' ' <<endl;
                     }
                     std::cout << '\n';
                 }

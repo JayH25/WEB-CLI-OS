@@ -4,6 +4,7 @@ const fs = require("fs"); // file system, used to check if files exists
 const path = require("path"); // used for file paths
 const { spawn } = require("child_process"); // used by node to run another program (here, cpp engine)
 const morgan = require("morgan");
+const { parseCommand } = require("./modules/commandParser"); // used to parse the command coming from frontend, and then we will send the parsed command to cpp engine, so cpp can understand it better
 
 const app = express(); // creates backend app
 app.use(cors()); // establishes the connection
@@ -11,6 +12,7 @@ app.use(express.json()); // allows backend to read json data from the 'req'
 app.use(morgan("dev")); // morgan dependency is used for, priting the POST and GET types of request.
 
 const PORT = process.env.PORT || 5000 ; 
+
 
 // Start engine once
 const engineCandidates = [
@@ -45,15 +47,15 @@ That is the core reason, that we are storing the process, so we can use it again
 
 // Same variables
 let outputBuffer = ""; // stores output coming from the cpp (temporary storage)
-let currentResponseObject = null; // stores current HTTP response
+const pendingRequests = []; // stores current HTTP response
 
 const respondToClient = (payload) => {
-  if (!currentResponseObject) {
+  if (pendingRequests.length === 0) {
     return;
   }
 
-  currentResponseObject.json(payload);
-  currentResponseObject = null;
+  const response = pendingRequests.shift();
+  response.json(payload);
 };
 
 const inferLegacyType = (text) => {
@@ -142,7 +144,7 @@ app.post("/command", (req, res, next) => {
     });
     return ;
   }
-    currentResponseObject = res;
+    pendingRequests.push(res);
 
     engineProcess.stdin.write(`${command.trim()}\n`);
   } catch(error) {
