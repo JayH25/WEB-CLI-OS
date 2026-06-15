@@ -177,19 +177,19 @@ npm start
 
 ### 2.1 — Express Backend Basics
 
-- [ ] Ensure Express server is running and listening on port 5000
-- [ ] Add a `POST /command` endpoint that accepts a JSON body `{ command: "ls" }` and returns `{ output: "..." }`
-- [ ] Add a `GET /ping` health check endpoint that returns `{ status: "ok" }` — useful for debugging
-- [ ] Add global error handling middleware that catches errors and returns clean JSON responses
-- [ ] Add request logging middleware using `morgan` so you can see every request in your terminal
+- [x] Ensure Express server is running and listening on port 5000
+- [x] Add a `POST /command` endpoint that accepts a JSON body `{ command: "ls" }` and returns `{ output: "..." }`
+- [x] Add a `GET /ping` health check endpoint that returns `{ status: "ok" }` — useful for debugging
+- [x] Add global error handling middleware that catches errors and returns clean JSON responses
+- [x] Add request logging middleware using `morgan` so you can see every request in your terminal
 
 ### 2.2 — Command Parser
 
-- [ ] Create a `commandParser.js` module in the backend
-- [ ] Parse a raw command string into: `{ name, args, flags }` (e.g., `"ls -la /home"` → `{ name: "ls", args: ["/home"], flags: ["-la"] }`)
-- [ ] Handle quoted strings: `echo "hello world"` should treat `hello world` as one argument
-- [ ] Handle edge cases: empty input, extra spaces, commands with no args
-- [ ] Write unit tests for the parser using Jest (test at least 10 different input formats)
+- [x] Create a `commandParser.js` module in the backend
+- [x] Parse a raw command string into: `{ name, args, flags }` (e.g., `"ls -la /home"` → `{ name: "ls", args: ["/home"], flags: ["-la"] }`)
+- [x] Handle quoted strings: `echo "hello world"` should treat `hello world` as one argument
+- [x] Handle edge cases: empty input, extra spaces, commands with no args
+- [x] Write unit tests for the parser using Jest (test at least 10 different input formats)
 
 ### 2.3 — Command Registry
 
