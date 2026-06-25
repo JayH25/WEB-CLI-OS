@@ -10,6 +10,7 @@ function App() {
     { type: "system", text: 'Type "help" to see available commands.' },
   ]);
   const [time, setTime] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -40,24 +41,38 @@ function App() {
     ]);
     setInput("");
 
+    setIsLoading(true);
+    
+
     try {
       const response = await fetch("http://localhost:5000/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ command: trimmedInput }),
+        signal: AbortSignal.timeout(10000)
       });
       const data = await response.json();
       const nextLine = {
         type: data.type || "output",
         text: data.output || "No output",
       };
-
-      setHistory((prev) => [...prev, nextLine]);
+      console.log(data);
+      if(data.clearScreen) {
+        setHistory([
+      { type: "system", text: "Welcome to Web-CLI-OS v1.0" },
+      { type: "system", text: 'Type "help" to see available commands.' },
+      ]);
+      }
+      else{
+        setHistory((prev) => [...prev, nextLine]);
+      }
     } catch (error) {
       setHistory((prev) => [
         ...prev,
         { type: "error", text: "Fatal Error: Cannot connect to Node server." },
       ]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -98,6 +113,12 @@ function App() {
             {renderHistoryLine(line)}
           </div>
         ))}
+
+        {isLoading && (
+          <div className="terminal-line terminal-line-system loading-spinner">
+            <span className="spinner">⏳</span> Processing...
+          </div>
+        )}
         <div ref={bottomRef} />
       </section>
 

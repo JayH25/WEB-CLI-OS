@@ -5,6 +5,8 @@ const path = require("path"); // used for file paths
 const { spawn } = require("child_process"); // used by node to run another program (here, cpp engine)
 const morgan = require("morgan");
 const { parseCommand } = require("./modules/commandParser"); // used to parse the command coming from frontend, and then we will send the parsed command to cpp engine, so cpp can understand it better
+const { executeCommand,commandRegistry } = require('./commands/registry'); // contains command functions
+
 
 const app = express(); // creates backend app
 app.use(cors()); // establishes the connection
@@ -129,13 +131,7 @@ app.get("/ping", (req, res) => {// This is a request made to check firstly, if s
 // Handle request
 app.post("/command", (req, res, next) => {
   try {
-    if (!engineProcess) {
-    res.status(503).json({
-      output: "Engine is not available. Compile engine/main.cpp first.",
-    });
-    return;
-  }
-
+  
   const {command} = req.body; 
 
   if(typeof(command) != "string" || !command.trim()) {
@@ -144,7 +140,37 @@ app.post("/command", (req, res, next) => {
     });
     return ;
   }
-    pendingRequests.push(res);
+
+  const parsedCommand = parseCommand(command);
+  const cmdName = parsedCommand.name;
+
+  if (commandRegistry[cmdName]) {
+      const result = executeCommand(cmdName, { 
+          args: parsedCommand.args, 
+          flags: parsedCommand.flags, 
+          session: {} 
+      });
+        
+      if(result.clearScreen) {
+        return res.json({
+          type: "output",
+          clearScreen: true,
+          output: ""
+        });
+      }
+      return res.json({
+          type: result.error ? "error" : "output",
+          output: result.error ? result.error : result.output
+      });
+    }
+
+  if (!engineProcess) {
+      // If C++ is off, fallback to our bash-like JS error
+      const result = executeCommand(cmdName, { args: [], flags: [] }); 
+      return res.json({ type: "error", output: result.error });
+    }
+
+  pendingRequests.push(res);
 
     engineProcess.stdin.write(`${command.trim()}\n`);
   } catch(error) {

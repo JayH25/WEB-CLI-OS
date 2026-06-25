@@ -193,25 +193,25 @@ npm start
 
 ### 2.3 — Command Registry
 
-- [ ] Create a `commands/` folder in the backend
-- [ ] Create a `registry.js` file that maps command names to their handler functions
-- [ ] Each handler receives `{ args, flags, session }` and returns `{ output, error }`
-- [ ] Add an `unknown command` fallback that returns an error message like bash does
-- [ ] Implement these basic commands as stub handlers first (output placeholder text):
-  - [ ] `help` — lists all available commands
-  - [ ] `echo` — prints its arguments
-  - [ ] `clear` — signals the frontend to clear the screen
-  - [ ] `date` — returns current date and time
-  - [ ] `whoami` — returns a username (hardcoded for now)
-  - [ ] `uname` — returns OS name and version info
+- [x] Create a `commands/` folder in the backend
+- [x] Create a `registry.js` file that maps command names to their handler functions
+- [x] Each handler receives `{ args, flags, session }` and returns `{ output, error }`
+- [x] Add an `unknown command` fallback that returns an error message like bash does
+- [x] Implement these basic commands as stub handlers first (output placeholder text):
+  - [x] `help` — lists all available commands
+  - [x] `echo` — prints its arguments
+  - [x] `clear` — signals the frontend to clear the screen
+  - [x] `date` — returns current date and time
+  - [x] `whoami` — returns a username (hardcoded for now)
+  - [x] `uname` — returns OS name and version info
 
 ### 2.4 — Frontend ↔ Backend Connection
 
-- [ ] In React, replace the local command handler with an `axios` (or `fetch`) call to `POST /command`
-- [ ] Show a loading indicator (e.g., spinner after the prompt) while waiting for the server response
-- [ ] Display the server's response as a new output line in the terminal
-- [ ] Handle network errors gracefully: show a friendly error if the backend is unreachable
-- [ ] Add a timeout: if the server takes more than 10 seconds, show `command timed out`
+- [x] In React, replace the local command handler with an `axios` (or `fetch`) call to `POST /command`
+- [x] Show a loading indicator (e.g., spinner after the prompt) while waiting for the server response
+- [x] Display the server's response as a new output line in the terminal
+- [x] Handle network errors gracefully: show a friendly error if the backend is unreachable
+- [x] Add a timeout: if the server takes more than 10 seconds, show `command timed out`
 
 ---
 
