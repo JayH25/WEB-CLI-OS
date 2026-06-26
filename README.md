@@ -221,7 +221,7 @@ npm start
 
 ### 3.1 — File System Data Structure (In-Memory)
 
-- [ ] Design a tree data structure to represent the file system:
+- [x] Design a tree data structure to represent the file system:
   ```
   {
     name: "/",
@@ -232,14 +232,14 @@ npm start
     ]
   }
   ```
-- [ ] Create a `FileSystem` class in the backend with methods: `getNode(path)`, `createFile(path, content)`, `createDir(path)`, `deleteNode(path)`, `moveNode(src, dest)`, `listDir(path)`
-- [ ] Initialize the file system with a default structure on server start:
+- [x] Create a `FileSystem` class in the backend with methods: `getNode(path)`, `createFile(path, content)`, `createDir(path)`, `deleteNode(path)`, `moveNode(src, dest)`, `listDir(path)`
+- [x] Initialize the file system with a default structure on server start:
   - `/` (root)
   - `/home/user/` (user home)
   - `/etc/` (config files)
   - `/tmp/` (temp files)
   - `/bin/` (placeholder for binaries)
-- [ ] Store the current working directory per-session (start at `/home/user`)
+- [x] Store the current working directory per-session (start at `/home/user`)
 
 ### 3.2 — File System Commands
 

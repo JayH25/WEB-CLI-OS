@@ -8,12 +8,15 @@ const { parseCommand } = require("./modules/commandParser"); // used to parse th
 const { executeCommand,commandRegistry } = require('./commands/registry'); // contains command functions
 
 
+
 const app = express(); // creates backend app
 app.use(cors()); // establishes the connection
 app.use(express.json()); // allows backend to read json data from the 'req'
 app.use(morgan("dev")); // morgan dependency is used for, priting the POST and GET types of request.
 
 const PORT = process.env.PORT || 5000 ; 
+
+
 
 
 // Start engine once
