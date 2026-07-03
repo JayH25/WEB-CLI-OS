@@ -105,6 +105,9 @@ public:
         createDir("/tmp");
         createDir("/bin");
     }
+    std::string getCwd() const {
+        return cwd;
+    }
 
     // 1. getNode(path)
     std::shared_ptr<FileNode> getNode(const std::string& path) {
@@ -247,8 +250,7 @@ int main() {
     try {
         std::string line;
         std::string command;
-        std::string argument;
-        std::string argument2;
+        // Notice: argument and argument2 are completely removed from here!
 
         while (true) {
             if (!std::getline(std::cin, line)) {
@@ -260,28 +262,28 @@ int main() {
             std::stringstream stream(line);
             stream >> command;
             
-            // Reconstruct the rest of the arguments (so paths with spaces work better, or just take the first arg)
-            if (!(stream >> argument)) {
-                argument = "";
-            }
-            if (!(stream >> argument2)) {
-                argument2 = "";
+            // Extract all remaining arguments into a vector
+            std::vector<std::string> args;
+            std::string arg;
+            while (stream >> arg) {
+                args.push_back(arg);
             }
 
             if (command == "exit") {
                 break;
             }
-
-            // 2. Route commands to our new VFS methods
+            
+            // 2. Route commands to our new VFS methods USING THE VECTOR (args)
             if (command == "mkdir") {
-                if (argument.empty()) {
+                if (args.empty()) {
                     std::cout << "Error: Folder name required\n";
                 } else {
-                    std::cout << vfs.createDir(argument) << '\n';
+                    std::cout << vfs.createDir(args[0]) << '\n';
                 }
             } 
             else if (command == "ls") {
-                std::string result = vfs.listDir(argument);
+                std::string target = args.empty() ? "" : args[0];
+                std::string result = vfs.listDir(target);
                 if (result.empty()) {
                     std::cout << "Directory is empty.\n";
                 } else {
@@ -289,17 +291,36 @@ int main() {
                 }
             }
             else if (command == "cd") {
-                if (argument.empty()) argument = "/home/user"; // Default cd goes to home
-                std::string result = vfs.changeDir(argument);
+                std::string target = args.empty() ? "/home/user" : args[0]; // Default cd goes to home
+                std::string result = vfs.changeDir(target);
                 if (!result.empty()) {
                     std::cout << result << '\n';
                 }
             }
-            else if(command == "mv"){
-                if (argument.empty() || argument2.empty()){
+            else if (command == "mv") {
+                if (args.size() < 2) {
                     std::cout << "Error: Source and destination required\n";
+                } else {
+                    std::cout << vfs.moveNode(args[0], args[1]) << '\n';
                 }
-                else std::cout << vfs.moveNode(argument, argument2) << '\n';
+            }
+            else if (command == "pwd") {
+                // Make sure you added std::string getCwd() const { return cwd; } inside the FileSystem class!
+                std::cout << vfs.getCwd() << '\n';
+            }
+            else if (command == "touch") {
+                if (args.empty()) {
+                    std::cout << "Error: File name required\n";
+                } else {
+                    std::cout << vfs.createFile(args[0], "") << '\n';
+                }
+            }
+            else if (command == "rm") {
+                if (args.empty()) {
+                    std::cout << "Error: Target required\n";
+                } else {
+                    std::cout << vfs.deleteNode(args[0]) << '\n';
+                }
             }
             else {
                 std::cout << "Command not recognized: " << command << '\n';
