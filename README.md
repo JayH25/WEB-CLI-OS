@@ -246,11 +246,11 @@ npm start
 Implement each of the following commands fully — they must work exactly like their Unix counterparts:
 
 - [x] **`pwd`** — prints the current working directory path
-- [ ] **`ls`** — lists files and directories in the current or specified path
-  - [ ] `ls` — basic list
-  - [ ] `ls -l` — long format (name, type, size, date)
-  - [ ] `ls -a` — include hidden files (names starting with `.`)
-  - [ ] `ls -la` — both flags combined
+- [x] **`ls`** — lists files and directories in the current or specified path
+  - [x] `ls` — basic list
+  - [x] `ls -l` — long format (name, type, size, date)
+  - [x] `ls -a` — include hidden files (names starting with `.`)
+  - [x] `ls -la` — both flags combined
 - [ ] **`cd`** — change current directory
   - [ ] `cd /absolute/path` — absolute path navigation
   - [ ] `cd relative/path` — relative path navigation

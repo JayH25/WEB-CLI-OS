@@ -1,8 +1,63 @@
 const fs = require("fs");
+const path = require("path");
+
+const formatDateTime = (date) =>
+  date.toISOString().replace("T", " ").slice(0, 19);
+
+const parseLsFlags = (flags) => {
+  let showAll = false;
+  let longFormat = false;
+
+  for (const flag of flags) {
+    if (flag === "-") {
+      return { error: "ls: invalid option -- '-'" };
+    }
+
+    if (!flag.startsWith("-")) {
+      return { error: `ls: invalid option -- '${flag}'` };
+    }
+
+    for (const option of flag.slice(1)) {
+      if (option === "a") {
+        showAll = true;
+      } else if (option === "l") {
+        longFormat = true;
+      } else {
+        return { error: `ls: invalid option -- '${option}'` };
+      }
+    }
+  }
+
+  return { showAll, longFormat };
+};
+
+const buildLsEntry = (entryPath, displayName) => {
+  const stats = fs.statSync(entryPath);
+
+  return {
+    name: displayName,
+    type: stats.isDirectory() ? "directory" : "file",
+    size: stats.size,
+    date: formatDateTime(stats.mtime),
+  };
+};
+
+const formatLsOutput = (entries, longFormat) => {
+  if (longFormat) {
+    return entries
+      .map(
+        (entry) => `${entry.name}\t${entry.type}\t${entry.size}\t${entry.date}`
+      )
+      .join("\n");
+  }
+
+  return entries.map((entry) => entry.name).join("\n");
+};
 
 const helpCommand = () => {
   return {
-    output: "Available commands: help, echo, clear, date, whoami, uname, pwd",
+    output:
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd",
     error: null,
   };
 };
@@ -76,6 +131,67 @@ const pwdCommand = ({ args, flags }) => {
   };
 };
 
+const lsCommand = ({ args, flags }) => {
+  if (args.length > 1) {
+    return {
+      output: null,
+      error: "ls: too many arguments",
+    };
+  }
+
+  const parsedFlags = parseLsFlags(flags);
+
+  if (parsedFlags.error) {
+    return {
+      output: null,
+      error: parsedFlags.error,
+    };
+  }
+
+  const targetPath = path.resolve(process.cwd(), args[0] || ".");
+
+  if (!fs.existsSync(targetPath)) {
+    return {
+      output: null,
+      error: `ls: cannot access '${args[0] || "."}': No such file or directory`,
+    };
+  }
+
+  let entries = [];
+
+  try {
+    const stats = fs.statSync(targetPath);
+
+    if (stats.isDirectory()) {
+      const directoryEntries = fs.readdirSync(targetPath);
+
+      if (parsedFlags.showAll) {
+        entries.push(buildLsEntry(targetPath, "."));
+        entries.push(buildLsEntry(path.resolve(targetPath, ".."), ".."));
+      }
+
+      entries.push(
+        ...directoryEntries
+          .filter((name) => parsedFlags.showAll || !name.startsWith("."))
+          .sort((left, right) => left.localeCompare(right))
+          .map((name) => buildLsEntry(path.join(targetPath, name), name))
+      );
+    } else {
+      entries = [buildLsEntry(targetPath, path.basename(targetPath))];
+    }
+  } catch (error) {
+    return {
+      output: null,
+      error: `ls: cannot access '${args[0] || "."}': ${error.message}`,
+    };
+  }
+
+  return {
+    output: formatLsOutput(entries, parsedFlags.longFormat),
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -84,6 +200,7 @@ const commandRegistry = {
   echo: echoCommand,
   clear: clearCommand,
   date: dateCommand,
+  ls: lsCommand,
   whoami: whoamiCommand,
   uname: unameCommand,
   pwd: pwdCommand,
