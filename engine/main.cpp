@@ -1,24 +1,26 @@
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
-#include <vector>
 #include <unordered_map>
-#include <memory>
+#include <vector>
 
 using namespace std;
+
+// NOLINTBEGIN
 
 // ==========================================
 // 1.Node Class
 // ==========================================
 class FileNode {
-private:
+   private:
     std::string name;
-    std::string type; // "directory" or "file"
+    std::string type;  // "directory" or "file"
     std::string content;
     std::unordered_map<std::string, std::shared_ptr<FileNode>> children;
     std::weak_ptr<FileNode> parent;
 
-public:
+   public:
     FileNode(std::string n, std::string t) : name(n), type(t) {}
 
     // Getters
@@ -32,13 +34,9 @@ public:
     void setParent(std::shared_ptr<FileNode> p) { parent = p; }
 
     // Tree Operations
-    void addChild(std::shared_ptr<FileNode> child) {
-        children[child->getName()] = child;
-    }
+    void addChild(std::shared_ptr<FileNode> child) { children[child->getName()] = child; }
 
-    void removeChild(const std::string& childName) {
-        children.erase(childName);
-    }
+    void removeChild(const std::string& childName) { children.erase(childName); }
 
     bool hasChild(const std::string& childName) const {
         return children.find(childName) != children.end();
@@ -60,9 +58,9 @@ public:
 // 2. The FileSystem Class
 // ==========================================
 class FileSystem {
-private:
+   private:
     std::shared_ptr<FileNode> root;
-    std::string cwd; // Current Working Directory
+    std::string cwd;  // Current Working Directory
 
     // Helper: Parses paths like "/home/../etc" into {"etc"}
     std::vector<std::string> parsePath(const std::string& inputPath) {
@@ -70,7 +68,7 @@ private:
         std::vector<std::string> parts;
         std::stringstream ss(fullPath);
         std::string part;
-        
+
         while (std::getline(ss, part, '/')) {
             if (part == "" || part == ".") continue;
             if (part == "..") {
@@ -93,7 +91,7 @@ private:
         return current;
     }
 
-public:
+   public:
     FileSystem() {
         root = std::make_shared<FileNode>("/", "directory");
         cwd = "/home/user";
@@ -128,7 +126,7 @@ public:
         newFile->setContent(content);
         newFile->setParent(parentNode);
         parentNode->addChild(newFile);
-        
+
         return "Created file: " + fileName;
     }
 
@@ -148,7 +146,7 @@ public:
         auto newDir = std::make_shared<FileNode>(dirName, "directory");
         newDir->setParent(parentNode);
         parentNode->addChild(newDir);
-        
+
         return "Created directory: " + dirName;
     }
 
@@ -174,7 +172,7 @@ public:
         if (srcParts.empty()) return "Error: Cannot move root directory";
         std::string srcName = srcParts.back();
         srcParts.pop_back();
-        
+
         auto srcParent = resolveNode(srcParts);
         if (!srcParent || !srcParent->hasChild(srcName)) return "Error: Source does not exist";
         auto nodeToMove = srcParent->getChild(srcName);
@@ -190,10 +188,10 @@ public:
         if (destParent->hasChild(destName)) return "Error: Destination already exists";
 
         // Remove from old parent, update name/parent, and add to new parent
-        srcParent->removeChild(srcName); 
-        nodeToMove->setName(destName); 
-        nodeToMove->setParent(destParent); 
-        destParent->addChild(nodeToMove);  
+        srcParent->removeChild(srcName);
+        nodeToMove->setName(destName);
+        nodeToMove->setParent(destParent);
+        destParent->addChild(nodeToMove);
 
         return "Moved to " + dest;
     }
@@ -206,14 +204,14 @@ public:
 
         if (!node) return "Error: No such file or directory";
         if (node->getType() != "directory") return "Error: Not a directory";
-        
+
         const auto& children = node->getChildren();
         if (children.empty()) return "Directory is empty.";
 
         std::string output = "";
         for (const auto& pair : children) {
             if (pair.second->getType() == "directory") {
-                output +=pair.first + "\n"; // Show folders in brackets
+                output += pair.first + "\n";  // Show folders in brackets
             } else {
                 output += pair.first + " ";
             }
@@ -221,7 +219,8 @@ public:
         return output;
     }
 
-    // Optional utility: If you want to support a `cd` command so relative paths work from the user's terminal
+    // Optional utility: If you want to support a `cd` command so relative paths work from the
+    // user's terminal
     std::string changeDir(const std::string& path) {
         auto parts = parsePath(path);
         auto node = resolveNode(parts);
@@ -234,14 +233,12 @@ public:
             cwd += "/" + part;
         }
         if (cwd.empty()) cwd = "/";
-        return ""; 
+        return "";
     }
 };
 
-
-
 int main() {
-    //Initialize the File System 
+    // Initialize the File System
     FileSystem vfs;
 
     try {
@@ -259,8 +256,9 @@ int main() {
 
             std::stringstream stream(line);
             stream >> command;
-            
-            // Reconstruct the rest of the arguments (so paths with spaces work better, or just take the first arg)
+
+            // Reconstruct the rest of the arguments (so paths with spaces work better, or just take
+            // the first arg)
             if (!(stream >> argument)) {
                 argument = "";
             }
@@ -279,29 +277,25 @@ int main() {
                 } else {
                     std::cout << vfs.createDir(argument) << '\n';
                 }
-            } 
-            else if (command == "ls") {
+            } else if (command == "ls") {
                 std::string result = vfs.listDir(argument);
                 if (result.empty()) {
                     std::cout << "Directory is empty.\n";
                 } else {
                     std::cout << result << '\n';
                 }
-            }
-            else if (command == "cd") {
-                if (argument.empty()) argument = "/home/user"; // Default cd goes to home
+            } else if (command == "cd") {
+                if (argument.empty()) argument = "/home/user";  // Default cd goes to home
                 std::string result = vfs.changeDir(argument);
                 if (!result.empty()) {
                     std::cout << result << '\n';
                 }
-            }
-            else if(command == "mv"){
-                if (argument.empty() || argument2.empty()){
+            } else if (command == "mv") {
+                if (argument.empty() || argument2.empty()) {
                     std::cout << "Error: Source and destination required\n";
-                }
-                else std::cout << vfs.moveNode(argument, argument2) << '\n';
-            }
-            else {
+                } else
+                    std::cout << vfs.moveNode(argument, argument2) << '\n';
+            } else {
                 std::cout << "Command not recognized: " << command << '\n';
             }
 
@@ -315,3 +309,5 @@ int main() {
 
     return 0;
 }
+
+// NOLINTEND

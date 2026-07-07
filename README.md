@@ -245,7 +245,7 @@ npm start
 
 Implement each of the following commands fully — they must work exactly like their Unix counterparts:
 
-- [ ] **`pwd`** — prints the current working directory path
+- [x] **`pwd`** — prints the current working directory path
 - [ ] **`ls`** — lists files and directories in the current or specified path
   - [ ] `ls` — basic list
   - [ ] `ls -l` — long format (name, type, size, date)

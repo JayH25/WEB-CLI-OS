@@ -3,6 +3,14 @@ module.exports = {
     node: true,
     es2021: true,
   },
+  overrides: [
+    {
+      files: ["tests/**/*.js"],
+      env: {
+        jest: true,
+      },
+    },
+  ],
   extends: ["eslint:recommended"],
   parserOptions: {
     ecmaVersion: 12,
