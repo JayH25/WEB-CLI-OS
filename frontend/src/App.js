@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./App.css";
 
 const PROMPT = "user@web-os:~$";
 
 function App() {
   const [input, setInput] = useState("");
+  const [caretIndex, setCaretIndex] = useState(0);
+  const [caretLeft, setCaretLeft] = useState(0);
   const [history, setHistory] = useState([
     { type: "system", text: "Welcome to Web-CLI-OS v1.0" },
     { type: "system", text: 'Type "help" to see available commands.' },
@@ -13,6 +15,11 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const caretMeasureRef = useRef(null);
+
+  const syncCaretIndex = (event) => {
+    setCaretIndex(event.target.selectionStart ?? event.target.value.length);
+  };
 
   useEffect(() => {
     if (typeof bottomRef.current?.scrollIntoView === "function") {
@@ -28,6 +35,14 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  useLayoutEffect(() => {
+    if (!caretMeasureRef.current) {
+      return;
+    }
+
+    setCaretLeft(caretMeasureRef.current.offsetWidth);
+  }, [input, caretIndex]);
+
   const executeCommand = async () => {
     const trimmedInput = input.trim();
 
@@ -40,16 +55,22 @@ function App() {
       { type: "input", text: `${PROMPT} ${trimmedInput}` },
     ]);
     setInput("");
+    setCaretIndex(0);
 
     setIsLoading(true);
-    
+
+    const requestSignal =
+      typeof AbortSignal !== "undefined" &&
+      typeof AbortSignal.timeout === "function"
+        ? AbortSignal.timeout(10000)
+        : undefined;
 
     try {
       const response = await fetch("http://localhost:5000/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ command: trimmedInput }),
-        signal: AbortSignal.timeout(10000)
+        ...(requestSignal ? { signal: requestSignal } : {}),
       });
       const data = await response.json();
       const nextLine = {
@@ -57,13 +78,12 @@ function App() {
         text: data.output || "No output",
       };
       console.log(data);
-      if(data.clearScreen) {
+      if (data.clearScreen) {
         setHistory([
-      { type: "system", text: "Welcome to Web-CLI-OS v1.0" },
-      { type: "system", text: 'Type "help" to see available commands.' },
-      ]);
-      }
-      else{
+          { type: "system", text: "Welcome to Web-CLI-OS v1.0" },
+          { type: "system", text: 'Type "help" to see available commands.' },
+        ]);
+      } else {
         setHistory((prev) => [...prev, nextLine]);
       }
     } catch (error) {
@@ -123,6 +143,7 @@ function App() {
       </section>
 
       <form
+        data-testid="terminal-form"
         className="terminal-prompt-row"
         onSubmit={(event) => {
           event.preventDefault();
@@ -136,7 +157,13 @@ function App() {
             className="terminal-input"
             type="text"
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(event) => {
+              setInput(event.target.value);
+              syncCaretIndex(event);
+            }}
+            onClick={syncCaretIndex}
+            onKeyUp={syncCaretIndex}
+            onSelect={syncCaretIndex}
             aria-label="Terminal command input"
             autoFocus
             autoComplete="off"
@@ -146,9 +173,16 @@ function App() {
           <span
             className="block-cursor"
             style={{
-              left: `${input.length * 8}px`,
+              left: `${caretLeft}px`,
             }}
           />
+          <span
+            ref={caretMeasureRef}
+            className="caret-measure"
+            aria-hidden="true"
+          >
+            {input.slice(0, caretIndex)}
+          </span>
         </div>
         {/* <span className="terminal-cursor" aria-hidden="true" /> */}
       </form>
