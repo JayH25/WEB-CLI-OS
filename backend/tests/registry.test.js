@@ -24,12 +24,13 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, and cd", () => {
+  test("help includes pwd, ls, cd, and mkdir", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
     expect(result.output).toContain("ls");
     expect(result.output).toContain("cd");
+    expect(result.output).toContain("mkdir");
   });
 
   test("executes ls in a specified directory", () => {
@@ -295,6 +296,142 @@ describe("Command Registry", () => {
       executeCommand("cd", { args: [".."], flags: [] });
       expect(executeCommand("pwd").output).toBe(testBaseDir);
       expect(executeCommand("ls").output.split("\n")).toContain("subA");
+    });
+  });
+
+  describe("mkdir command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-mkdir-"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("creates a single directory", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("mkdir", {
+        args: ["new_folder"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, "new_folder"))).toBe(true);
+      expect(
+        fs.statSync(path.join(testBaseDir, "new_folder")).isDirectory()
+      ).toBe(true);
+    });
+
+    test("returns error if directory already exists without -p", () => {
+      process.chdir(testBaseDir);
+      fs.mkdirSync(path.join(testBaseDir, "existing_folder"));
+
+      const result = executeCommand("mkdir", {
+        args: ["existing_folder"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "mkdir: cannot create directory 'existing_folder': File exists",
+      });
+    });
+
+    test("creates nested directories with -p", () => {
+      process.chdir(testBaseDir);
+      const nestedPath = path.join("a", "b", "c");
+      const result = executeCommand("mkdir", {
+        args: [nestedPath],
+        flags: ["-p"],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, nestedPath))).toBe(true);
+      expect(
+        fs.statSync(path.join(testBaseDir, nestedPath)).isDirectory()
+      ).toBe(true);
+    });
+
+    test("succeeds silently if directory already exists with -p", () => {
+      process.chdir(testBaseDir);
+      const dirPath = path.join(testBaseDir, "already_exists");
+      fs.mkdirSync(dirPath);
+
+      const result = executeCommand("mkdir", {
+        args: ["already_exists"],
+        flags: ["-p"],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+    });
+
+    test("returns error when parent directory does not exist without -p", () => {
+      process.chdir(testBaseDir);
+      const nestedPath = path.join("nonexistent_parent", "child");
+      const result = executeCommand("mkdir", { args: [nestedPath], flags: [] });
+
+      expect(result).toEqual({
+        output: null,
+        error: `mkdir: cannot create directory '${nestedPath}': No such file or directory`,
+      });
+    });
+
+    test("returns error when missing operand", () => {
+      const result = executeCommand("mkdir", { args: [], flags: [] });
+
+      expect(result).toEqual({
+        output: null,
+        error: "mkdir: missing operand",
+      });
+    });
+
+    test("creates multiple directories in one command", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("mkdir", {
+        args: ["dir1", "dir2", "dir3"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, "dir1"))).toBe(true);
+      expect(fs.existsSync(path.join(testBaseDir, "dir2"))).toBe(true);
+      expect(fs.existsSync(path.join(testBaseDir, "dir3"))).toBe(true);
+    });
+
+    test("returns error on invalid flag option", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("mkdir", {
+        args: ["test_dir"],
+        flags: ["-z"],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "mkdir: invalid option -- 'z'",
+      });
+    });
+
+    test("mkdir works seamlessly with ls and cd", () => {
+      process.chdir(testBaseDir);
+
+      executeCommand("mkdir", { args: ["my_app"], flags: [] });
+      expect(executeCommand("ls").output).toContain("my_app");
+
+      executeCommand("cd", { args: ["my_app"], flags: [] });
+      expect(executeCommand("pwd").output).toBe(
+        path.join(testBaseDir, "my_app")
+      );
+
+      executeCommand("mkdir", {
+        args: [path.join("src", "components")],
+        flags: ["-p"],
+      });
+      expect(executeCommand("ls").output).toContain("src");
     });
   });
 });

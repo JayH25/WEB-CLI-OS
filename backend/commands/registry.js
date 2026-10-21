@@ -75,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir",
     error: null,
   };
 };
@@ -377,6 +377,144 @@ const cdCommand = ({ args = [], flags = [], session = {} }) => {
   };
 };
 
+const parseMkdirFlags = (flags) => {
+  let parents = false;
+
+  for (const flag of flags) {
+    if (flag === "--parents") {
+      parents = true;
+      continue;
+    }
+
+    if (flag === "--") {
+      continue;
+    }
+
+    if (!flag.startsWith("-") || flag === "-") {
+      return { error: `mkdir: invalid option -- '${flag}'` };
+    }
+
+    for (const option of flag.slice(1)) {
+      if (option === "p") {
+        parents = true;
+      } else {
+        return { error: `mkdir: invalid option -- '${option}'` };
+      }
+    }
+  }
+
+  return { parents };
+};
+
+const mkdirCommand = ({ args = [], flags = [] }) => {
+  const parsedFlags = parseMkdirFlags(flags);
+
+  if (parsedFlags.error) {
+    return {
+      output: null,
+      error: parsedFlags.error,
+    };
+  }
+
+  if (args.length === 0) {
+    return {
+      output: null,
+      error: "mkdir: missing operand",
+    };
+  }
+
+  const { parents } = parsedFlags;
+
+  for (const target of args) {
+    if (target === "") {
+      return {
+        output: null,
+        error: "mkdir: cannot create directory '': No such file or directory",
+      };
+    }
+
+    const targetPath = path.resolve(process.cwd(), target);
+
+    if (parents) {
+      if (fs.existsSync(targetPath)) {
+        try {
+          const stats = fs.statSync(targetPath);
+          if (!stats.isDirectory()) {
+            return {
+              output: null,
+              error: `mkdir: cannot create directory '${target}': File exists`,
+            };
+          }
+        } catch (error) {
+          return {
+            output: null,
+            error: `mkdir: cannot create directory '${target}': ${error.message}`,
+          };
+        }
+        continue;
+      }
+
+      try {
+        fs.mkdirSync(targetPath, { recursive: true });
+      } catch (error) {
+        if (error.code === "EEXIST") {
+          return {
+            output: null,
+            error: `mkdir: cannot create directory '${target}': File exists`,
+          };
+        }
+        if (error.code === "ENOTDIR") {
+          return {
+            output: null,
+            error: `mkdir: cannot create directory '${target}': Not a directory`,
+          };
+        }
+        return {
+          output: null,
+          error: `mkdir: cannot create directory '${target}': ${error.message}`,
+        };
+      }
+    } else {
+      if (fs.existsSync(targetPath)) {
+        return {
+          output: null,
+          error: `mkdir: cannot create directory '${target}': File exists`,
+        };
+      }
+
+      const parentDir = path.dirname(targetPath);
+      if (!fs.existsSync(parentDir)) {
+        return {
+          output: null,
+          error: `mkdir: cannot create directory '${target}': No such file or directory`,
+        };
+      }
+
+      try {
+        const parentStats = fs.statSync(parentDir);
+        if (!parentStats.isDirectory()) {
+          return {
+            output: null,
+            error: `mkdir: cannot create directory '${target}': Not a directory`,
+          };
+        }
+
+        fs.mkdirSync(targetPath);
+      } catch (error) {
+        return {
+          output: null,
+          error: `mkdir: cannot create directory '${target}': ${error.message}`,
+        };
+      }
+    }
+  }
+
+  return {
+    output: "",
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -390,6 +528,7 @@ const commandRegistry = {
   uname: unameCommand,
   pwd: pwdCommand,
   cd: cdCommand,
+  mkdir: mkdirCommand,
 };
 
 /*
