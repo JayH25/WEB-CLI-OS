@@ -24,7 +24,7 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, cp, mv, find, and grep", () => {
+  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, cp, mv, find, grep, and head", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
@@ -38,6 +38,7 @@ describe("Command Registry", () => {
     expect(result.output).toContain("mv");
     expect(result.output).toContain("find");
     expect(result.output).toContain("grep");
+    expect(result.output).toContain("head");
   });
 
   test("executes ls in a specified directory", () => {
@@ -1579,6 +1580,141 @@ describe("Command Registry", () => {
       expect(result).toEqual({
         output: null,
         error: "grep: invalid option -- 'z'",
+      });
+    });
+  });
+
+  describe("head command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-head-"));
+      const lines = [];
+      for (let i = 1; i <= 20; i++) {
+        lines.push(`Line ${i}`);
+      }
+      fs.writeFileSync(
+        path.join(testBaseDir, "twenty.txt"),
+        lines.join("\n") + "\n"
+      );
+      fs.writeFileSync(path.join(testBaseDir, "short.txt"), "A\nB\nC\n");
+      fs.mkdirSync(path.join(testBaseDir, "a_dir"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("prints first 10 lines by default", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("head", {
+        args: ["twenty.txt"],
+        flags: [],
+      });
+
+      expect(result.error).toBeNull();
+      const outputLines = result.output.split("\n");
+      expect(outputLines.length).toBe(10);
+      expect(outputLines[0]).toBe("Line 1");
+      expect(outputLines[9]).toBe("Line 10");
+    });
+
+    test("prints specified number of lines with -n", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("head", {
+        args: ["3", "twenty.txt"],
+        flags: ["-n"],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("Line 1\nLine 2\nLine 3");
+    });
+
+    test("supports shorthand -N number flag", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("head", {
+        args: ["twenty.txt"],
+        flags: ["-2"],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("Line 1\nLine 2");
+    });
+
+    test("outputs all lines if file has fewer lines than requested", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("head", {
+        args: ["short.txt"],
+        flags: [],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("A\nB\nC");
+    });
+
+    test("formats multiple files with headers", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("head", {
+        args: ["short.txt", "twenty.txt"],
+        flags: ["-2"],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toContain("==> short.txt <==");
+      expect(result.output).toContain("A\nB");
+      expect(result.output).toContain("==> twenty.txt <==");
+      expect(result.output).toContain("Line 1\nLine 2");
+    });
+
+    test("returns error when target file does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("head", {
+        args: ["missing.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error:
+          "head: cannot open 'missing.txt' for reading: No such file or directory",
+      });
+    });
+
+    test("returns error when target is a directory", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("head", {
+        args: ["a_dir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "head: error reading 'a_dir': Is a directory",
+      });
+    });
+
+    test("returns error on missing file operand", () => {
+      const result = executeCommand("head", { args: [], flags: [] });
+
+      expect(result).toEqual({
+        output: null,
+        error: "head: missing file operand",
+      });
+    });
+
+    test("returns error on invalid line number", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("head", {
+        args: ["abc", "twenty.txt"],
+        flags: ["-n"],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "head: invalid number of lines: 'abc'",
       });
     });
   });

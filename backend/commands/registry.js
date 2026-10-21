@@ -75,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head",
     error: null,
   };
 };
@@ -1687,6 +1687,174 @@ const grepCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const parseHeadOptions = (args, flags) => {
+  let count = 10;
+  const files = [];
+
+  const hasOptionsInArgs = args.some((arg) => arg.startsWith("-"));
+
+  if (hasOptionsInArgs) {
+    let i = 0;
+    while (i < args.length) {
+      const token = args[i];
+      if (token === "-n" || token === "--lines") {
+        if (i + 1 >= args.length) {
+          return { error: "head: option requires an argument -- 'n'" };
+        }
+        const val = parseInt(args[i + 1], 10);
+        if (isNaN(val) || val < 0) {
+          return { error: `head: invalid number of lines: '${args[i + 1]}'` };
+        }
+        count = val;
+        i += 2;
+      } else if (token.startsWith("-n")) {
+        const val = parseInt(token.slice(2), 10);
+        if (isNaN(val) || val < 0) {
+          return {
+            error: `head: invalid number of lines: '${token.slice(2)}'`,
+          };
+        }
+        count = val;
+        i += 1;
+      } else if (/^-\d+$/.test(token)) {
+        count = parseInt(token.slice(1), 10);
+        i += 1;
+      } else if (token.startsWith("-")) {
+        return { error: `head: invalid option -- '${token.slice(1, 2)}'` };
+      } else {
+        files.push(token);
+        i += 1;
+      }
+    }
+  } else {
+    let needValue = false;
+    for (const flag of flags) {
+      if (flag === "-n" || flag === "--lines") {
+        needValue = true;
+      } else if (flag.startsWith("-n")) {
+        const val = parseInt(flag.slice(2), 10);
+        if (isNaN(val) || val < 0) {
+          return { error: `head: invalid number of lines: '${flag.slice(2)}'` };
+        }
+        count = val;
+      } else if (/^-\d+$/.test(flag)) {
+        count = parseInt(flag.slice(1), 10);
+      } else {
+        return { error: `head: invalid option -- '${flag.slice(1, 2)}'` };
+      }
+    }
+
+    if (needValue) {
+      if (args.length === 0) {
+        return { error: "head: option requires an argument -- 'n'" };
+      }
+      const val = parseInt(args[0], 10);
+      if (isNaN(val) || val < 0) {
+        return { error: `head: invalid number of lines: '${args[0]}'` };
+      }
+      count = val;
+      for (let j = 1; j < args.length; j++) {
+        files.push(args[j]);
+      }
+    } else {
+      for (const a of args) {
+        files.push(a);
+      }
+    }
+  }
+
+  return { count, files };
+};
+
+const headCommand = ({ args = [], flags = [] }) => {
+  const parsed = parseHeadOptions(args, flags);
+
+  if (parsed.error) {
+    return {
+      output: null,
+      error: parsed.error,
+    };
+  }
+
+  const { count, files } = parsed;
+
+  if (files.length === 0) {
+    return {
+      output: null,
+      error: "head: missing file operand",
+    };
+  }
+
+  const results = [];
+  const multipleFiles = files.length > 1;
+
+  for (let fIdx = 0; fIdx < files.length; fIdx++) {
+    const file = files[fIdx];
+    if (file === "") {
+      return {
+        output: null,
+        error: "head: cannot open '' for reading: No such file or directory",
+      };
+    }
+
+    const filePath = path.resolve(process.cwd(), file);
+
+    if (!fs.existsSync(filePath)) {
+      return {
+        output: null,
+        error: `head: cannot open '${file}' for reading: No such file or directory`,
+      };
+    }
+
+    let stats;
+    try {
+      stats = fs.statSync(filePath);
+    } catch (err) {
+      return {
+        output: null,
+        error: `head: error reading '${file}': ${err.message}`,
+      };
+    }
+
+    if (stats.isDirectory()) {
+      return {
+        output: null,
+        error: `head: error reading '${file}': Is a directory`,
+      };
+    }
+
+    let content;
+    try {
+      content = fs.readFileSync(filePath, "utf-8");
+    } catch (err) {
+      return {
+        output: null,
+        error: `head: cannot open '${file}' for reading: ${err.message}`,
+      };
+    }
+
+    const lines = content.split("\n");
+    const hasTrailingNewline = content.endsWith("\n");
+    const actualLines = hasTrailingNewline ? lines.slice(0, -1) : lines;
+    const slicedLines = actualLines.slice(0, count);
+    const fileOutput = slicedLines.join("\n");
+
+    if (multipleFiles) {
+      const header = `==> ${file} <==`;
+      results.push(
+        fIdx === 0 ? `${header}\n${fileOutput}` : `\n${header}\n${fileOutput}`
+      );
+    } else {
+      results.push(fileOutput);
+    }
+  }
+
+  return {
+    output: results.join("\n"),
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -1708,6 +1876,7 @@ const commandRegistry = {
   mv: mvCommand,
   find: findCommand,
   grep: grepCommand,
+  head: headCommand,
 };
 
 /*

@@ -288,7 +288,7 @@ Implement each of the following commands fully — they must work exactly like t
   - [x] `grep "pattern" filename`
   - [x] `grep -r "pattern" /path` — recursive search
   - [x] `grep -i "pattern" filename` — case-insensitive
-- [ ] **`head`** — print first N lines of a file (default 10)
+- [x] **`head`** — print first N lines of a file (default 10)
 - [ ] **`tail`** — print last N lines of a file (default 10)
 - [ ] **`wc`** — word count
   - [ ] `wc -l filename` — count lines
