@@ -75,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat",
     error: null,
   };
 };
@@ -621,6 +621,109 @@ const touchCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const formatNumberedLines = (content) => {
+  if (content === "") return "";
+  const lines = content.split("\n");
+  const hasTrailingNewline = content.endsWith("\n");
+  const linesToNumber = hasTrailingNewline ? lines.slice(0, -1) : lines;
+  const formatted = linesToNumber
+    .map((line, idx) => `     ${idx + 1}\t${line}`)
+    .join("\n");
+  return hasTrailingNewline ? `${formatted}\n` : formatted;
+};
+
+const parseCatFlags = (flags) => {
+  let numberLines = false;
+
+  for (const flag of flags) {
+    if (flag === "--number") {
+      numberLines = true;
+      continue;
+    }
+
+    if (flag === "--") {
+      continue;
+    }
+
+    if (!flag.startsWith("-") || flag === "-") {
+      return { error: `cat: invalid option -- '${flag}'` };
+    }
+
+    for (const option of flag.slice(1)) {
+      if (option === "n") {
+        numberLines = true;
+      } else {
+        return { error: `cat: invalid option -- '${option}'` };
+      }
+    }
+  }
+
+  return { numberLines };
+};
+
+const catCommand = ({ args = [], flags = [] }) => {
+  const parsedFlags = parseCatFlags(flags);
+
+  if (parsedFlags.error) {
+    return {
+      output: null,
+      error: parsedFlags.error,
+    };
+  }
+
+  if (args.length === 0) {
+    return {
+      output: "",
+      error: null,
+    };
+  }
+
+  const { numberLines } = parsedFlags;
+  const contents = [];
+
+  for (const target of args) {
+    if (target === "") {
+      return {
+        output: null,
+        error: "cat: '': No such file or directory",
+      };
+    }
+
+    const targetPath = path.resolve(process.cwd(), target);
+
+    if (!fs.existsSync(targetPath)) {
+      return {
+        output: null,
+        error: `cat: ${target}: No such file or directory`,
+      };
+    }
+
+    try {
+      const stats = fs.statSync(targetPath);
+      if (stats.isDirectory()) {
+        return {
+          output: null,
+          error: `cat: ${target}: Is a directory`,
+        };
+      }
+
+      const fileContent = fs.readFileSync(targetPath, "utf-8");
+      contents.push(fileContent);
+    } catch (error) {
+      return {
+        output: null,
+        error: `cat: ${target}: ${error.message}`,
+      };
+    }
+  }
+
+  const concatenated = contents.join("");
+  return {
+    output: numberLines ? formatNumberedLines(concatenated) : concatenated,
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -636,6 +739,7 @@ const commandRegistry = {
   cd: cdCommand,
   mkdir: mkdirCommand,
   touch: touchCommand,
+  cat: catCommand,
 };
 
 /*

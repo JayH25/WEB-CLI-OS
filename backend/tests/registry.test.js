@@ -24,7 +24,7 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, cd, mkdir, and touch", () => {
+  test("help includes pwd, ls, cd, mkdir, touch, and cat", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
@@ -32,6 +32,7 @@ describe("Command Registry", () => {
     expect(result.output).toContain("cd");
     expect(result.output).toContain("mkdir");
     expect(result.output).toContain("touch");
+    expect(result.output).toContain("cat");
   });
 
   test("executes ls in a specified directory", () => {
@@ -587,6 +588,140 @@ describe("Command Registry", () => {
       expect(lsResult.error).toBeNull();
       expect(lsResult.output).toContain("doc.md");
       expect(lsResult.output).toContain("file\t0");
+    });
+  });
+
+  describe("cat command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-cat-"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("outputs content of a single file", () => {
+      process.chdir(testBaseDir);
+      const filePath = path.join(testBaseDir, "hello.txt");
+      fs.writeFileSync(filePath, "Hello, world!\n");
+
+      const result = executeCommand("cat", {
+        args: ["hello.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: "Hello, world!\n",
+        error: null,
+      });
+    });
+
+    test("concatenates and outputs multiple files", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "part1.txt"), "First part. ");
+      fs.writeFileSync(path.join(testBaseDir, "part2.txt"), "Second part.\n");
+
+      const result = executeCommand("cat", {
+        args: ["part1.txt", "part2.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: "First part. Second part.\n",
+        error: null,
+      });
+    });
+
+    test("returns empty string when no arguments are provided", () => {
+      const result = executeCommand("cat", { args: [], flags: [] });
+
+      expect(result).toEqual({
+        output: "",
+        error: null,
+      });
+    });
+
+    test("returns error when target file does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("cat", {
+        args: ["missing.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cat: missing.txt: No such file or directory",
+      });
+    });
+
+    test("returns error when target is a directory", () => {
+      process.chdir(testBaseDir);
+      const dirPath = path.join(testBaseDir, "my_dir");
+      fs.mkdirSync(dirPath);
+
+      const result = executeCommand("cat", {
+        args: ["my_dir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cat: my_dir: Is a directory",
+      });
+    });
+
+    test("numbers output lines when -n flag is passed", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "lines.txt"), "Line 1\nLine 2\n");
+
+      const result = executeCommand("cat", {
+        args: ["lines.txt"],
+        flags: ["-n"],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("     1\tLine 1\n     2\tLine 2\n");
+    });
+
+    test("returns error on invalid flag option", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("cat", {
+        args: ["test.txt"],
+        flags: ["-z"],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cat: invalid option -- 'z'",
+      });
+    });
+
+    test("outputs content from newly touched and populated files", () => {
+      process.chdir(testBaseDir);
+
+      executeCommand("touch", { args: ["notes.txt"], flags: [] });
+      expect(executeCommand("cat", { args: ["notes.txt"], flags: [] })).toEqual(
+        {
+          output: "",
+          error: null,
+        }
+      );
+
+      fs.writeFileSync(
+        path.join(testBaseDir, "notes.txt"),
+        "Updated notes content"
+      );
+      expect(executeCommand("cat", { args: ["notes.txt"], flags: [] })).toEqual(
+        {
+          output: "Updated notes content",
+          error: null,
+        }
+      );
     });
   });
 });
