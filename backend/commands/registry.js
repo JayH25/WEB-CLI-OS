@@ -1,5 +1,23 @@
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
+
+let previousWorkingDirectory = null;
+
+const resolveHomeDirectory = () =>
+  process.env.HOME ||
+  process.env.USERPROFILE ||
+  (typeof os.homedir === "function" ? os.homedir() : null);
+
+const getPreviousWorkingDirectory = () => previousWorkingDirectory;
+
+const setPreviousWorkingDirectory = (dir) => {
+  previousWorkingDirectory = dir;
+};
+
+const resetPreviousWorkingDirectory = () => {
+  previousWorkingDirectory = null;
+};
 
 const formatDateTime = (date) =>
   date.toISOString().replace("T", " ").slice(0, 19);
@@ -57,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd",
     error: null,
   };
 };
@@ -192,6 +210,173 @@ const lsCommand = ({ args, flags }) => {
   };
 };
 
+const parseCdFlags = (flags) => {
+  let usePhysicalPath = false;
+  let hasDashOperand = false;
+
+  for (const flag of flags) {
+    if (flag === "-") {
+      hasDashOperand = true;
+      continue;
+    }
+
+    if (flag === "--") {
+      continue;
+    }
+
+    if (!flag.startsWith("-")) {
+      return { error: `cd: invalid option -- '${flag}'` };
+    }
+
+    for (const option of flag.slice(1)) {
+      if (option === "L") {
+        usePhysicalPath = false;
+      } else if (option === "P") {
+        usePhysicalPath = true;
+      } else {
+        return { error: `cd: invalid option -- '${option}'` };
+      }
+    }
+  }
+
+  return { usePhysicalPath, hasDashOperand };
+};
+
+const cdCommand = ({ args = [], flags = [], session = {} }) => {
+  const parsedFlags = parseCdFlags(flags);
+
+  if (parsedFlags.error) {
+    return {
+      output: null,
+      error: parsedFlags.error,
+    };
+  }
+
+  const { usePhysicalPath, hasDashOperand } = parsedFlags;
+
+  if (hasDashOperand && args.length > 0) {
+    return {
+      output: null,
+      error: "cd: too many arguments",
+    };
+  }
+
+  if (args.length > 1) {
+    return {
+      output: null,
+      error: "cd: too many arguments",
+    };
+  }
+
+  let isPreviousDirNavigation = false;
+  let rawTarget = null;
+  let targetPath = null;
+
+  if (hasDashOperand) {
+    rawTarget = "-";
+    isPreviousDirNavigation = true;
+  } else if (args.length === 1) {
+    rawTarget = args[0];
+    if (rawTarget === "-") {
+      isPreviousDirNavigation = true;
+    }
+  }
+
+  if (args.length === 1 && rawTarget === "") {
+    return {
+      output: null,
+      error: "cd: : No such file or directory",
+    };
+  }
+
+  if (isPreviousDirNavigation) {
+    const prevDir = (session && session.oldPwd) || previousWorkingDirectory;
+    if (!prevDir) {
+      return {
+        output: null,
+        error: "cd: OLDPWD not set",
+      };
+    }
+    targetPath = prevDir;
+  } else if (!rawTarget || rawTarget === "~") {
+    const homeDir = resolveHomeDirectory();
+    if (!homeDir) {
+      return {
+        output: null,
+        error: "cd: HOME not set",
+      };
+    }
+    targetPath = homeDir;
+  } else if (rawTarget.startsWith("~/") || rawTarget.startsWith("~\\")) {
+    const homeDir = resolveHomeDirectory();
+    if (!homeDir) {
+      return {
+        output: null,
+        error: "cd: HOME not set",
+      };
+    }
+    targetPath = path.join(homeDir, rawTarget.slice(2));
+  } else {
+    targetPath = path.resolve(process.cwd(), rawTarget);
+  }
+
+  if (!fs.existsSync(targetPath)) {
+    return {
+      output: null,
+      error: `cd: ${rawTarget}: No such file or directory`,
+    };
+  }
+
+  try {
+    const stats = fs.statSync(targetPath);
+    if (!stats.isDirectory()) {
+      return {
+        output: null,
+        error: `cd: ${rawTarget}: Not a directory`,
+      };
+    }
+  } catch (error) {
+    return {
+      output: null,
+      error: `cd: ${rawTarget}: ${error.message}`,
+    };
+  }
+
+  let resolvedTargetPath = targetPath;
+  if (usePhysicalPath) {
+    try {
+      resolvedTargetPath = fs.realpathSync(targetPath);
+    } catch (error) {
+      return {
+        output: null,
+        error: `cd: ${rawTarget}: ${error.message}`,
+      };
+    }
+  }
+
+  const currentDir = process.cwd();
+
+  try {
+    process.chdir(resolvedTargetPath);
+  } catch (error) {
+    return {
+      output: null,
+      error: `cd: ${rawTarget}: ${error.message}`,
+    };
+  }
+
+  const newWorkingDirectory = process.cwd();
+  previousWorkingDirectory = currentDir;
+  if (session && typeof session === "object") {
+    session.oldPwd = currentDir;
+  }
+
+  return {
+    output: isPreviousDirNavigation ? newWorkingDirectory : "",
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -204,6 +389,7 @@ const commandRegistry = {
   whoami: whoamiCommand,
   uname: unameCommand,
   pwd: pwdCommand,
+  cd: cdCommand,
 };
 
 /*
@@ -245,4 +431,7 @@ const executeCommand = (
 module.exports = {
   executeCommand,
   commandRegistry,
+  resetPreviousWorkingDirectory,
+  getPreviousWorkingDirectory,
+  setPreviousWorkingDirectory,
 };

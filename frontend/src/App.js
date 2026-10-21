@@ -83,7 +83,7 @@ function App() {
           { type: "system", text: "Welcome to Web-CLI-OS v1.0" },
           { type: "system", text: 'Type "help" to see available commands.' },
         ]);
-      } else {
+      } else if (data.output !== "") {
         setHistory((prev) => [...prev, nextLine]);
       }
     } catch (error) {

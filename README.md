@@ -74,17 +74,19 @@ npm start
 ### Environment Variables
 
 **Backend (`/backend/.env`)**
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `5000` | Server port |
-| `NODE_ENV` | `development` | Environment mode |
+
+| Variable      | Default                 | Description             |
+| ------------- | ----------------------- | ----------------------- |
+| `PORT`        | `5000`                  | Server port             |
+| `NODE_ENV`    | `development`           | Environment mode        |
 | `CORS_ORIGIN` | `http://localhost:3000` | Allowed frontend origin |
 
 **Frontend (`/frontend/.env.local`)**
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REACT_APP_API_URL` | `http://localhost:5000` | Backend API URL |
-| `REACT_APP_NODE_ENV` | `development` | Environment mode |
+
+| Variable             | Default                 | Description      |
+| -------------------- | ----------------------- | ---------------- |
+| `REACT_APP_API_URL`  | `http://localhost:5000` | Backend API URL  |
+| `REACT_APP_NODE_ENV` | `development`           | Environment mode |
 
 ---
 
@@ -251,12 +253,12 @@ Implement each of the following commands fully — they must work exactly like t
   - [x] `ls -l` — long format (name, type, size, date)
   - [x] `ls -a` — include hidden files (names starting with `.`)
   - [x] `ls -la` — both flags combined
-- [ ] **`cd`** — change current directory
-  - [ ] `cd /absolute/path` — absolute path navigation
-  - [ ] `cd relative/path` — relative path navigation
-  - [ ] `cd ..` — go up one directory
-  - [ ] `cd ~` — go to home directory
-  - [ ] `cd -` — go to the previous directory
+- [x] **`cd`** — change current directory
+  - [x] `cd /absolute/path` — absolute path navigation
+  - [x] `cd relative/path` — relative path navigation
+  - [x] `cd ..` — go up one directory
+  - [x] `cd ~` — go to home directory
+  - [x] `cd -` — go to the previous directory
 - [ ] **`mkdir`** — create a directory
   - [ ] `mkdir dirname` — create a single directory
   - [ ] `mkdir -p a/b/c` — create nested directories
