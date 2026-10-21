@@ -24,7 +24,7 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, and cp", () => {
+  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, cp, and mv", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
@@ -35,6 +35,7 @@ describe("Command Registry", () => {
     expect(result.output).toContain("cat");
     expect(result.output).toContain("rm");
     expect(result.output).toContain("cp");
+    expect(result.output).toContain("mv");
   });
 
   test("executes ls in a specified directory", () => {
@@ -1092,6 +1093,200 @@ describe("Command Registry", () => {
       expect(
         executeCommand("cat", { args: ["duplicate.txt"], flags: [] }).output
       ).toBe("copied content");
+    });
+  });
+
+  describe("mv command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-mv-"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("renames a file (mv oldname newname)", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "oldname.txt"), "rename me");
+
+      const result = executeCommand("mv", {
+        args: ["oldname.txt", "newname.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, "oldname.txt"))).toBe(false);
+      expect(fs.existsSync(path.join(testBaseDir, "newname.txt"))).toBe(true);
+      expect(
+        fs.readFileSync(path.join(testBaseDir, "newname.txt"), "utf-8")
+      ).toBe("rename me");
+    });
+
+    test("moves a file into an existing directory (mv file /path/)", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "file.txt"), "move me");
+      fs.mkdirSync(path.join(testBaseDir, "dest_dir"));
+
+      const result = executeCommand("mv", {
+        args: ["file.txt", "dest_dir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, "file.txt"))).toBe(false);
+      const movedPath = path.join(testBaseDir, "dest_dir", "file.txt");
+      expect(fs.existsSync(movedPath)).toBe(true);
+      expect(fs.readFileSync(movedPath, "utf-8")).toBe("move me");
+    });
+
+    test("renames a directory", () => {
+      process.chdir(testBaseDir);
+      const oldDir = path.join(testBaseDir, "old_folder");
+      fs.mkdirSync(oldDir);
+      fs.writeFileSync(path.join(oldDir, "inner.txt"), "inner");
+
+      const result = executeCommand("mv", {
+        args: ["old_folder", "new_folder"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(oldDir)).toBe(false);
+      expect(
+        fs.existsSync(path.join(testBaseDir, "new_folder", "inner.txt"))
+      ).toBe(true);
+    });
+
+    test("moves multiple files into an existing directory", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "f1.txt"), "1");
+      fs.writeFileSync(path.join(testBaseDir, "f2.txt"), "2");
+      fs.mkdirSync(path.join(testBaseDir, "target_dir"));
+
+      const result = executeCommand("mv", {
+        args: ["f1.txt", "f2.txt", "target_dir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, "f1.txt"))).toBe(false);
+      expect(fs.existsSync(path.join(testBaseDir, "f2.txt"))).toBe(false);
+      expect(
+        fs.existsSync(path.join(testBaseDir, "target_dir", "f1.txt"))
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(testBaseDir, "target_dir", "f2.txt"))
+      ).toBe(true);
+    });
+
+    test("returns error when multiple sources provided and destination is not a directory", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "f1.txt"), "1");
+      fs.writeFileSync(path.join(testBaseDir, "f2.txt"), "2");
+
+      const result = executeCommand("mv", {
+        args: ["f1.txt", "f2.txt", "not_a_dir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "mv: target 'not_a_dir' is not a directory",
+      });
+    });
+
+    test("returns error when source does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("mv", {
+        args: ["ghost.txt", "dest.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "mv: cannot stat 'ghost.txt': No such file or directory",
+      });
+    });
+
+    test("returns error when moving a file to itself", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "self.txt"), "content");
+
+      const result = executeCommand("mv", {
+        args: ["self.txt", "self.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "mv: 'self.txt' and 'self.txt' are the same file",
+      });
+    });
+
+    test("returns error when moving directory into its own subdirectory", () => {
+      process.chdir(testBaseDir);
+      const parentDir = path.join(testBaseDir, "parent");
+      const childDir = path.join(parentDir, "child");
+      fs.mkdirSync(parentDir);
+      fs.mkdirSync(childDir);
+
+      const result = executeCommand("mv", {
+        args: ["parent", "parent/child"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error:
+          "mv: cannot move a directory, 'parent', into itself, 'parent/child'",
+      });
+    });
+
+    test("returns error on missing operands", () => {
+      expect(executeCommand("mv", { args: [], flags: [] })).toEqual({
+        output: null,
+        error: "mv: missing file operand",
+      });
+
+      expect(
+        executeCommand("mv", { args: ["only_one.txt"], flags: [] })
+      ).toEqual({
+        output: null,
+        error: "mv: missing destination file operand after 'only_one.txt'",
+      });
+    });
+
+    test("returns error on invalid flag option", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("mv", {
+        args: ["a.txt", "b.txt"],
+        flags: ["-z"],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "mv: invalid option -- 'z'",
+      });
+    });
+
+    test("integrates with ls and cat dynamically", () => {
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["draft.txt"], flags: [] });
+      fs.writeFileSync(path.join(testBaseDir, "draft.txt"), "final text");
+
+      executeCommand("mv", { args: ["draft.txt", "published.txt"], flags: [] });
+
+      const lsOutput = executeCommand("ls").output;
+      expect(lsOutput).not.toContain("draft.txt");
+      expect(lsOutput).toContain("published.txt");
+      expect(
+        executeCommand("cat", { args: ["published.txt"], flags: [] }).output
+      ).toBe("final text");
     });
   });
 });

@@ -75,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv",
     error: null,
   };
 };
@@ -1044,6 +1044,212 @@ const cpCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const parseMvFlags = (flags) => {
+  let force = false;
+  let noClobber = false;
+
+  for (const flag of flags) {
+    if (flag === "--force") {
+      force = true;
+      continue;
+    }
+    if (flag === "--no-clobber") {
+      noClobber = true;
+      continue;
+    }
+    if (flag === "--") {
+      continue;
+    }
+
+    if (!flag.startsWith("-") || flag === "-") {
+      return { error: `mv: invalid option -- '${flag}'` };
+    }
+
+    for (const option of flag.slice(1)) {
+      if (option === "f") {
+        force = true;
+      } else if (option === "n") {
+        noClobber = true;
+      } else {
+        return { error: `mv: invalid option -- '${option}'` };
+      }
+    }
+  }
+
+  return { force, noClobber };
+};
+
+const mvCommand = ({ args = [], flags = [] }) => {
+  const parsedFlags = parseMvFlags(flags);
+
+  if (parsedFlags.error) {
+    return {
+      output: null,
+      error: parsedFlags.error,
+    };
+  }
+
+  if (args.length === 0) {
+    return {
+      output: null,
+      error: "mv: missing file operand",
+    };
+  }
+
+  if (args.length === 1) {
+    return {
+      output: null,
+      error: `mv: missing destination file operand after '${args[0]}'`,
+    };
+  }
+
+  const { noClobber } = parsedFlags;
+  const destRaw = args[args.length - 1];
+  const sourcesRaw = args.slice(0, args.length - 1);
+
+  if (destRaw === "") {
+    return {
+      output: null,
+      error: "mv: cannot move to '': No such file or directory",
+    };
+  }
+
+  const destPath = path.resolve(process.cwd(), destRaw);
+  const isDestDir =
+    fs.existsSync(destPath) && fs.statSync(destPath).isDirectory();
+
+  if (sourcesRaw.length > 1 && !isDestDir) {
+    return {
+      output: null,
+      error: `mv: target '${destRaw}' is not a directory`,
+    };
+  }
+
+  for (const srcRaw of sourcesRaw) {
+    if (srcRaw === "") {
+      return {
+        output: null,
+        error: "mv: cannot stat '': No such file or directory",
+      };
+    }
+
+    const srcPath = path.resolve(process.cwd(), srcRaw);
+
+    if (!fs.existsSync(srcPath)) {
+      return {
+        output: null,
+        error: `mv: cannot stat '${srcRaw}': No such file or directory`,
+      };
+    }
+
+    let srcStats;
+    try {
+      srcStats = fs.statSync(srcPath);
+    } catch (error) {
+      return {
+        output: null,
+        error: `mv: cannot stat '${srcRaw}': ${error.message}`,
+      };
+    }
+
+    const isSrcDir = srcStats.isDirectory();
+    const targetDestPath = isDestDir
+      ? path.join(destPath, path.basename(srcPath))
+      : destPath;
+
+    if (srcPath === targetDestPath) {
+      return {
+        output: null,
+        error: `mv: '${srcRaw}' and '${destRaw}' are the same file`,
+      };
+    }
+
+    if (isSrcDir) {
+      const relative = path.relative(srcPath, targetDestPath);
+      if (
+        relative === "" ||
+        (!relative.startsWith("..") && !path.isAbsolute(relative))
+      ) {
+        return {
+          output: null,
+          error: `mv: cannot move a directory, '${srcRaw}', into itself, '${destRaw}'`,
+        };
+      }
+
+      if (
+        fs.existsSync(targetDestPath) &&
+        !fs.statSync(targetDestPath).isDirectory()
+      ) {
+        return {
+          output: null,
+          error: `mv: cannot overwrite non-directory '${destRaw}' with directory '${srcRaw}'`,
+        };
+      }
+    } else {
+      if (
+        fs.existsSync(targetDestPath) &&
+        fs.statSync(targetDestPath).isDirectory()
+      ) {
+        return {
+          output: null,
+          error: `mv: cannot overwrite directory '${destRaw}' with non-directory '${srcRaw}'`,
+        };
+      }
+    }
+
+    if (noClobber && fs.existsSync(targetDestPath)) {
+      continue;
+    }
+
+    const destParent = path.dirname(targetDestPath);
+    if (!fs.existsSync(destParent)) {
+      return {
+        output: null,
+        error: `mv: cannot move '${srcRaw}' to '${destRaw}': No such file or directory`,
+      };
+    }
+
+    try {
+      const parentStats = fs.statSync(destParent);
+      if (!parentStats.isDirectory()) {
+        return {
+          output: null,
+          error: `mv: cannot move '${srcRaw}' to '${destRaw}': Not a directory`,
+        };
+      }
+
+      try {
+        fs.renameSync(srcPath, targetDestPath);
+      } catch (renameErr) {
+        if (renameErr.code === "EXDEV") {
+          if (isSrcDir) {
+            fs.cpSync(srcPath, targetDestPath, {
+              recursive: true,
+              force: true,
+            });
+            fs.rmSync(srcPath, { recursive: true, force: true });
+          } else {
+            fs.copyFileSync(srcPath, targetDestPath);
+            fs.unlinkSync(srcPath);
+          }
+        } else {
+          throw renameErr;
+        }
+      }
+    } catch (error) {
+      return {
+        output: null,
+        error: `mv: cannot move '${srcRaw}' to '${destRaw}': ${error.message}`,
+      };
+    }
+  }
+
+  return {
+    output: "",
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -1062,6 +1268,7 @@ const commandRegistry = {
   cat: catCommand,
   rm: rmCommand,
   cp: cpCommand,
+  mv: mvCommand,
 };
 
 /*

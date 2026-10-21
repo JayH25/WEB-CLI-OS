@@ -277,9 +277,9 @@ Implement each of the following commands fully — they must work exactly like t
 - [x] **`cp`** — copy a file or directory
   - [x] `cp source dest`
   - [x] `cp -r sourcedir destdir`
-- [ ] **`mv`** — move or rename a file/directory
-  - [ ] `mv oldname newname`
-  - [ ] `mv file /another/path/`
+- [x] **`mv`** — move or rename a file/directory
+  - [x] `mv oldname newname`
+  - [x] `mv file /another/path/`
 - [ ] **`find`** — search for files
   - [ ] `find . -name "*.txt"` — find by name
   - [ ] `find /home -type f` — find files only
