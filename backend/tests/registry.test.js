@@ -24,7 +24,7 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, cp, mv, and find", () => {
+  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, cp, mv, find, and grep", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
@@ -37,6 +37,7 @@ describe("Command Registry", () => {
     expect(result.output).toContain("cp");
     expect(result.output).toContain("mv");
     expect(result.output).toContain("find");
+    expect(result.output).toContain("grep");
   });
 
   test("executes ls in a specified directory", () => {
@@ -1428,6 +1429,157 @@ describe("Command Registry", () => {
         flags: ["-type"],
       });
       expect(result.error).toBe("find: Unknown argument to -type: x");
+    });
+  });
+
+  describe("grep command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-grep-"));
+      fs.writeFileSync(
+        path.join(testBaseDir, "hello.txt"),
+        "Hello World\nAnother line\nhello again\n"
+      );
+      fs.writeFileSync(
+        path.join(testBaseDir, "other.txt"),
+        "A different text\nhello from other\n"
+      );
+      fs.mkdirSync(path.join(testBaseDir, "nested"));
+      fs.writeFileSync(
+        path.join(testBaseDir, "nested", "deep.txt"),
+        "Deep hello inside\nNothing here\n"
+      );
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("searches pattern in single file", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("grep", {
+        args: ["hello", "hello.txt"],
+        flags: [],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("hello again");
+    });
+
+    test("searches case-insensitively with -i", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("grep", {
+        args: ["hello", "hello.txt"],
+        flags: ["-i"],
+      });
+
+      expect(result.error).toBeNull();
+      const lines = result.output.split("\n");
+      expect(lines).toEqual(["Hello World", "hello again"]);
+    });
+
+    test("searches recursively with -r", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("grep", {
+        args: ["Deep", "nested"],
+        flags: ["-r"],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("nested/deep.txt:Deep hello inside");
+    });
+
+    test("prefixes filenames when searching multiple files", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("grep", {
+        args: ["hello", "hello.txt", "other.txt"],
+        flags: [],
+      });
+
+      expect(result.error).toBeNull();
+      const lines = result.output.split("\n");
+      expect(lines).toContain("hello.txt:hello again");
+      expect(lines).toContain("other.txt:hello from other");
+    });
+
+    test("returns empty output when pattern not found", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("grep", {
+        args: ["notfound", "hello.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+    });
+
+    test("returns error when target is a directory without -r", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("grep", {
+        args: ["hello", "nested"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "grep: nested: Is a directory",
+      });
+    });
+
+    test("returns error when target file does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("grep", {
+        args: ["hello", "missing.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "grep: missing.txt: No such file or directory",
+      });
+    });
+
+    test("returns error on missing operands", () => {
+      expect(executeCommand("grep", { args: [], flags: [] })).toEqual({
+        output: null,
+        error: "grep: missing pattern",
+      });
+
+      expect(executeCommand("grep", { args: ["pattern"], flags: [] })).toEqual({
+        output: null,
+        error: "grep: missing file operand",
+      });
+    });
+
+    test("supports -n line numbers and -v invert match", () => {
+      process.chdir(testBaseDir);
+      const resN = executeCommand("grep", {
+        args: ["hello", "hello.txt"],
+        flags: ["-n"],
+      });
+      expect(resN.output).toBe("3:hello again");
+
+      const resV = executeCommand("grep", {
+        args: ["hello", "hello.txt"],
+        flags: ["-v"],
+      });
+      expect(resV.output).toBe("Hello World\nAnother line");
+    });
+
+    test("returns error on invalid flag option", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("grep", {
+        args: ["pattern", "hello.txt"],
+        flags: ["-z"],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "grep: invalid option -- 'z'",
+      });
     });
   });
 });

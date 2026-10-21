@@ -75,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep",
     error: null,
   };
 };
@@ -1440,6 +1440,253 @@ const findCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const parseGrepFlags = (flags, rawArgs) => {
+  let recursive = false;
+  let ignoreCase = false;
+  let lineNumbers = false;
+  let invertMatch = false;
+  let filesWithMatches = false;
+
+  const positional = [];
+  const combined = [];
+
+  for (const flag of flags) {
+    combined.push(flag);
+  }
+  for (const arg of rawArgs) {
+    if (
+      arg.startsWith("-") &&
+      combined.length === flags.length &&
+      positional.length === 0
+    ) {
+      combined.push(arg);
+    } else {
+      positional.push(arg);
+    }
+  }
+
+  for (const flag of combined) {
+    if (flag === "--recursive") {
+      recursive = true;
+      continue;
+    }
+    if (flag === "--ignore-case") {
+      ignoreCase = true;
+      continue;
+    }
+    if (flag === "--line-number") {
+      lineNumbers = true;
+      continue;
+    }
+    if (flag === "--invert-match") {
+      invertMatch = true;
+      continue;
+    }
+    if (flag === "--files-with-matches") {
+      filesWithMatches = true;
+      continue;
+    }
+    if (flag === "--") {
+      continue;
+    }
+
+    if (!flag.startsWith("-") || flag === "-") {
+      return { error: `grep: invalid option -- '${flag}'` };
+    }
+
+    for (const opt of flag.slice(1)) {
+      if (opt === "r" || opt === "R") {
+        recursive = true;
+      } else if (opt === "i") {
+        ignoreCase = true;
+      } else if (opt === "n") {
+        lineNumbers = true;
+      } else if (opt === "v") {
+        invertMatch = true;
+      } else if (opt === "l") {
+        filesWithMatches = true;
+      } else {
+        return { error: `grep: invalid option -- '${opt}'` };
+      }
+    }
+  }
+
+  return {
+    recursive,
+    ignoreCase,
+    lineNumbers,
+    invertMatch,
+    filesWithMatches,
+    positional,
+  };
+};
+
+const grepCommand = ({ args = [], flags = [] }) => {
+  const parsedFlags = parseGrepFlags(flags, args);
+
+  if (parsedFlags.error) {
+    return {
+      output: null,
+      error: parsedFlags.error,
+    };
+  }
+
+  const {
+    recursive,
+    ignoreCase,
+    lineNumbers,
+    invertMatch,
+    filesWithMatches,
+    positional,
+  } = parsedFlags;
+
+  if (positional.length === 0) {
+    return {
+      output: null,
+      error: "grep: missing pattern",
+    };
+  }
+
+  const pattern = positional[0];
+  let targets = positional.slice(1);
+
+  if (targets.length === 0) {
+    if (recursive) {
+      targets = ["."];
+    } else {
+      return {
+        output: null,
+        error: "grep: missing file operand",
+      };
+    }
+  }
+
+  let regex;
+  try {
+    regex = new RegExp(pattern, ignoreCase ? "i" : "");
+  } catch (_e) {
+    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    regex = new RegExp(escaped, ignoreCase ? "i" : "");
+  }
+
+  const outputLines = [];
+  const multipleTargets = targets.length > 1;
+
+  const searchFile = (filePath, displayPath, prefixWithFile) => {
+    let content;
+    try {
+      content = fs.readFileSync(filePath, "utf-8");
+    } catch (_err) {
+      return;
+    }
+
+    const lines = content.split("\n");
+    const linesToSearch = content.endsWith("\n") ? lines.slice(0, -1) : lines;
+
+    for (let idx = 0; idx < linesToSearch.length; idx++) {
+      const line = linesToSearch[idx];
+      const isMatch = regex.test(line);
+      const passes = invertMatch ? !isMatch : isMatch;
+
+      if (passes) {
+        if (filesWithMatches) {
+          outputLines.push(displayPath);
+          break;
+        }
+
+        let formattedLine = line;
+        if (lineNumbers) {
+          formattedLine = `${idx + 1}:${formattedLine}`;
+        }
+        if (prefixWithFile) {
+          formattedLine = `${displayPath}:${formattedLine}`;
+        }
+
+        outputLines.push(formattedLine);
+      }
+    }
+  };
+
+  const walkDirectory = (dirPath, displayDir) => {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dirPath).sort();
+    } catch (_err) {
+      return;
+    }
+
+    for (const entry of entries) {
+      const childFullPath = path.join(dirPath, entry);
+      const childDisplayPath =
+        displayDir === "."
+          ? `./${entry}`
+          : `${displayDir.replace(/\/$/, "")}/${entry}`;
+
+      let stats;
+      try {
+        stats = fs.statSync(childFullPath);
+      } catch (_err) {
+        continue;
+      }
+
+      if (stats.isDirectory()) {
+        walkDirectory(childFullPath, childDisplayPath);
+      } else if (stats.isFile()) {
+        searchFile(childFullPath, childDisplayPath, true);
+      }
+    }
+  };
+
+  for (const target of targets) {
+    if (target === "") {
+      return {
+        output: null,
+        error: "grep: : No such file or directory",
+      };
+    }
+
+    const targetPath = path.resolve(process.cwd(), target);
+
+    if (!fs.existsSync(targetPath)) {
+      return {
+        output: null,
+        error: `grep: ${target}: No such file or directory`,
+      };
+    }
+
+    let stats;
+    try {
+      stats = fs.statSync(targetPath);
+    } catch (err) {
+      return {
+        output: null,
+        error: `grep: ${target}: ${err.message}`,
+      };
+    }
+
+    if (stats.isDirectory()) {
+      if (!recursive) {
+        return {
+          output: null,
+          error: `grep: ${target}: Is a directory`,
+        };
+      }
+      walkDirectory(targetPath, target.replace(/\\/g, "/"));
+    } else {
+      searchFile(
+        targetPath,
+        target.replace(/\\/g, "/"),
+        multipleTargets || recursive
+      );
+    }
+  }
+
+  return {
+    output: outputLines.join("\n"),
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -1460,6 +1707,7 @@ const commandRegistry = {
   cp: cpCommand,
   mv: mvCommand,
   find: findCommand,
+  grep: grepCommand,
 };
 
 /*

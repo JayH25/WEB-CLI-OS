@@ -284,10 +284,10 @@ Implement each of the following commands fully — they must work exactly like t
   - [x] `find . -name "*.txt"` — find by name
   - [x] `find /home -type f` — find files only
   - [x] `find /home -type d` — find directories only
-- [ ] **`grep`** — search for text within files
-  - [ ] `grep "pattern" filename`
-  - [ ] `grep -r "pattern" /path` — recursive search
-  - [ ] `grep -i "pattern" filename` — case-insensitive
+- [x] **`grep`** — search for text within files
+  - [x] `grep "pattern" filename`
+  - [x] `grep -r "pattern" /path` — recursive search
+  - [x] `grep -i "pattern" filename` — case-insensitive
 - [ ] **`head`** — print first N lines of a file (default 10)
 - [ ] **`tail`** — print last N lines of a file (default 10)
 - [ ] **`wc`** — word count
