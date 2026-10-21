@@ -262,7 +262,7 @@ Implement each of the following commands fully — they must work exactly like t
 - [x] **`mkdir`** — create a directory
   - [x] `mkdir dirname` — create a single directory
   - [x] `mkdir -p a/b/c` — create nested directories
-- [ ] **`touch`** — create an empty file or update the timestamp of an existing file
+- [x] **`touch`** — create an empty file or update the timestamp of an existing file
 - [ ] **`cat`** — print the contents of a file
   - [ ] `cat filename` — output file content
   - [ ] `cat file1 file2` — concatenate and output multiple files

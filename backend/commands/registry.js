@@ -75,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch",
     error: null,
   };
 };
@@ -515,6 +515,112 @@ const mkdirCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const parseTouchFlags = (flags) => {
+  let noCreate = false;
+
+  for (const flag of flags) {
+    if (flag === "--no-create") {
+      noCreate = true;
+      continue;
+    }
+
+    if (flag === "--") {
+      continue;
+    }
+
+    if (!flag.startsWith("-") || flag === "-") {
+      return { error: `touch: invalid option -- '${flag}'` };
+    }
+
+    for (const option of flag.slice(1)) {
+      if (option === "c") {
+        noCreate = true;
+      } else {
+        return { error: `touch: invalid option -- '${option}'` };
+      }
+    }
+  }
+
+  return { noCreate };
+};
+
+const touchCommand = ({ args = [], flags = [] }) => {
+  const parsedFlags = parseTouchFlags(flags);
+
+  if (parsedFlags.error) {
+    return {
+      output: null,
+      error: parsedFlags.error,
+    };
+  }
+
+  if (args.length === 0) {
+    return {
+      output: null,
+      error: "touch: missing file operand",
+    };
+  }
+
+  const { noCreate } = parsedFlags;
+  const now = new Date();
+
+  for (const target of args) {
+    if (target === "") {
+      return {
+        output: null,
+        error: "touch: cannot touch '': No such file or directory",
+      };
+    }
+
+    const targetPath = path.resolve(process.cwd(), target);
+
+    if (fs.existsSync(targetPath)) {
+      try {
+        fs.utimesSync(targetPath, now, now);
+      } catch (error) {
+        return {
+          output: null,
+          error: `touch: cannot touch '${target}': ${error.message}`,
+        };
+      }
+    } else {
+      if (noCreate) {
+        continue;
+      }
+
+      const parentDir = path.dirname(targetPath);
+      if (!fs.existsSync(parentDir)) {
+        return {
+          output: null,
+          error: `touch: cannot touch '${target}': No such file or directory`,
+        };
+      }
+
+      try {
+        const parentStats = fs.statSync(parentDir);
+        if (!parentStats.isDirectory()) {
+          return {
+            output: null,
+            error: `touch: cannot touch '${target}': Not a directory`,
+          };
+        }
+
+        fs.writeFileSync(targetPath, "");
+      } catch (error) {
+        return {
+          output: null,
+          error: `touch: cannot touch '${target}': ${error.message}`,
+        };
+      }
+    }
+  }
+
+  return {
+    output: "",
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -529,6 +635,7 @@ const commandRegistry = {
   pwd: pwdCommand,
   cd: cdCommand,
   mkdir: mkdirCommand,
+  touch: touchCommand,
 };
 
 /*

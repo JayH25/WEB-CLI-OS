@@ -24,13 +24,14 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, cd, and mkdir", () => {
+  test("help includes pwd, ls, cd, mkdir, and touch", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
     expect(result.output).toContain("ls");
     expect(result.output).toContain("cd");
     expect(result.output).toContain("mkdir");
+    expect(result.output).toContain("touch");
   });
 
   test("executes ls in a specified directory", () => {
@@ -432,6 +433,160 @@ describe("Command Registry", () => {
         flags: ["-p"],
       });
       expect(executeCommand("ls").output).toContain("src");
+    });
+  });
+
+  describe("touch command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-touch-"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("creates an empty file when it does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("touch", {
+        args: ["new_file.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      const filePath = path.join(testBaseDir, "new_file.txt");
+      expect(fs.existsSync(filePath)).toBe(true);
+      expect(fs.statSync(filePath).isFile()).toBe(true);
+      expect(fs.statSync(filePath).size).toBe(0);
+    });
+
+    test("updates timestamp of existing file while preserving content", () => {
+      process.chdir(testBaseDir);
+      const filePath = path.join(testBaseDir, "existing.txt");
+      fs.writeFileSync(filePath, "persisted content");
+
+      const pastTime = new Date(Date.now() - 60000);
+      fs.utimesSync(filePath, pastTime, pastTime);
+      const initialMtime = fs.statSync(filePath).mtimeMs;
+
+      const result = executeCommand("touch", {
+        args: ["existing.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.readFileSync(filePath, "utf-8")).toBe("persisted content");
+      expect(fs.statSync(filePath).mtimeMs).toBeGreaterThan(initialMtime);
+    });
+
+    test("updates timestamp of existing directory", () => {
+      process.chdir(testBaseDir);
+      const dirPath = path.join(testBaseDir, "target_dir");
+      fs.mkdirSync(dirPath);
+
+      const pastTime = new Date(Date.now() - 60000);
+      fs.utimesSync(dirPath, pastTime, pastTime);
+      const initialMtime = fs.statSync(dirPath).mtimeMs;
+
+      const result = executeCommand("touch", {
+        args: ["target_dir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.statSync(dirPath).mtimeMs).toBeGreaterThan(initialMtime);
+    });
+
+    test("creates multiple empty files in one command", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("touch", {
+        args: ["file1.txt", "file2.txt", "file3.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, "file1.txt"))).toBe(true);
+      expect(fs.existsSync(path.join(testBaseDir, "file2.txt"))).toBe(true);
+      expect(fs.existsSync(path.join(testBaseDir, "file3.txt"))).toBe(true);
+    });
+
+    test("-c flag does not create file if it does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("touch", {
+        args: ["phantom.txt"],
+        flags: ["-c"],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, "phantom.txt"))).toBe(false);
+    });
+
+    test("-c flag updates timestamp if file already exists", () => {
+      process.chdir(testBaseDir);
+      const filePath = path.join(testBaseDir, "exists.txt");
+      fs.writeFileSync(filePath, "content");
+      const pastTime = new Date(Date.now() - 60000);
+      fs.utimesSync(filePath, pastTime, pastTime);
+      const initialMtime = fs.statSync(filePath).mtimeMs;
+
+      const result = executeCommand("touch", {
+        args: ["exists.txt"],
+        flags: ["-c"],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.statSync(filePath).mtimeMs).toBeGreaterThan(initialMtime);
+    });
+
+    test("returns error when parent directory does not exist", () => {
+      process.chdir(testBaseDir);
+      const target = path.join("no_parent", "file.txt");
+      const result = executeCommand("touch", {
+        args: [target],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: `touch: cannot touch '${target}': No such file or directory`,
+      });
+    });
+
+    test("returns error when missing file operand", () => {
+      const result = executeCommand("touch", { args: [], flags: [] });
+
+      expect(result).toEqual({
+        output: null,
+        error: "touch: missing file operand",
+      });
+    });
+
+    test("returns error on invalid flag option", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("touch", {
+        args: ["test.txt"],
+        flags: ["-z"],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "touch: invalid option -- 'z'",
+      });
+    });
+
+    test("touch works seamlessly with ls long listing", () => {
+      process.chdir(testBaseDir);
+
+      executeCommand("touch", { args: ["doc.md"], flags: [] });
+      const lsResult = executeCommand("ls", { args: [], flags: ["-l"] });
+
+      expect(lsResult.error).toBeNull();
+      expect(lsResult.output).toContain("doc.md");
+      expect(lsResult.output).toContain("file\t0");
     });
   });
 });
