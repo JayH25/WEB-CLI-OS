@@ -270,13 +270,13 @@ Implement each of the following commands fully — they must work exactly like t
   - [x] `echo hello world`
   - [x] `echo "hello world"` — quoted string
   - [x] `echo $VAR` — print an environment variable (implement later in env section)
-- [ ] **`rm`** — remove a file
-  - [ ] `rm filename`
-  - [ ] `rm -r dirname` — recursively remove a directory
-  - [ ] `rm -f filename` — force remove without prompting
-- [ ] **`cp`** — copy a file or directory
-  - [ ] `cp source dest`
-  - [ ] `cp -r sourcedir destdir`
+- [x] **`rm`** — remove a file
+  - [x] `rm filename`
+  - [x] `rm -r dirname` — recursively remove a directory
+  - [x] `rm -f filename` — force remove without prompting
+- [x] **`cp`** — copy a file or directory
+  - [x] `cp source dest`
+  - [x] `cp -r sourcedir destdir`
 - [ ] **`mv`** — move or rename a file/directory
   - [ ] `mv oldname newname`
   - [ ] `mv file /another/path/`

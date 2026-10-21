@@ -24,7 +24,7 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, cd, mkdir, touch, cat, and rm", () => {
+  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, and cp", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
@@ -34,6 +34,7 @@ describe("Command Registry", () => {
     expect(result.output).toContain("touch");
     expect(result.output).toContain("cat");
     expect(result.output).toContain("rm");
+    expect(result.output).toContain("cp");
   });
 
   test("executes ls in a specified directory", () => {
@@ -891,6 +892,206 @@ describe("Command Registry", () => {
 
       executeCommand("rm", { args: ["target.txt"], flags: [] });
       expect(executeCommand("ls").output).not.toContain("target.txt");
+    });
+  });
+
+  describe("cp command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-cp-"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("copies a file to a new file name", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "source.txt"), "hello copy");
+
+      const result = executeCommand("cp", {
+        args: ["source.txt", "dest.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, "dest.txt"))).toBe(true);
+      expect(fs.readFileSync(path.join(testBaseDir, "dest.txt"), "utf-8")).toBe(
+        "hello copy"
+      );
+    });
+
+    test("copies a file into an existing directory", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "source.txt"), "into dir");
+      fs.mkdirSync(path.join(testBaseDir, "target_dir"));
+
+      const result = executeCommand("cp", {
+        args: ["source.txt", "target_dir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      const copiedPath = path.join(testBaseDir, "target_dir", "source.txt");
+      expect(fs.existsSync(copiedPath)).toBe(true);
+      expect(fs.readFileSync(copiedPath, "utf-8")).toBe("into dir");
+    });
+
+    test("recursively copies a directory with -r", () => {
+      process.chdir(testBaseDir);
+      const srcDir = path.join(testBaseDir, "src_dir");
+      fs.mkdirSync(srcDir);
+      fs.writeFileSync(path.join(srcDir, "inner.txt"), "inside src");
+
+      const result = executeCommand("cp", {
+        args: ["src_dir", "dest_dir"],
+        flags: ["-r"],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(
+        fs.existsSync(path.join(testBaseDir, "dest_dir", "inner.txt"))
+      ).toBe(true);
+      expect(
+        fs.readFileSync(
+          path.join(testBaseDir, "dest_dir", "inner.txt"),
+          "utf-8"
+        )
+      ).toBe("inside src");
+    });
+
+    test("returns error when attempting to copy directory without -r", () => {
+      process.chdir(testBaseDir);
+      const srcDir = path.join(testBaseDir, "src_dir");
+      fs.mkdirSync(srcDir);
+
+      const result = executeCommand("cp", {
+        args: ["src_dir", "dest_dir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cp: -r not specified; omitting directory 'src_dir'",
+      });
+    });
+
+    test("copies multiple files into an existing directory", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "f1.txt"), "1");
+      fs.writeFileSync(path.join(testBaseDir, "f2.txt"), "2");
+      fs.mkdirSync(path.join(testBaseDir, "bucket"));
+
+      const result = executeCommand("cp", {
+        args: ["f1.txt", "f2.txt", "bucket"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(path.join(testBaseDir, "bucket", "f1.txt"))).toBe(
+        true
+      );
+      expect(fs.existsSync(path.join(testBaseDir, "bucket", "f2.txt"))).toBe(
+        true
+      );
+    });
+
+    test("returns error when multiple sources provided and destination is not a directory", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "f1.txt"), "1");
+      fs.writeFileSync(path.join(testBaseDir, "f2.txt"), "2");
+
+      const result = executeCommand("cp", {
+        args: ["f1.txt", "f2.txt", "non_directory"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cp: target 'non_directory' is not a directory",
+      });
+    });
+
+    test("returns error when source file does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("cp", {
+        args: ["missing.txt", "dest.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cp: cannot stat 'missing.txt': No such file or directory",
+      });
+    });
+
+    test("returns error when copying a file to itself", () => {
+      process.chdir(testBaseDir);
+      fs.writeFileSync(path.join(testBaseDir, "same.txt"), "same");
+
+      const result = executeCommand("cp", {
+        args: ["same.txt", "same.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cp: 'same.txt' and 'same.txt' are the same file",
+      });
+    });
+
+    test("returns error when missing destination operand", () => {
+      const result = executeCommand("cp", { args: ["single.txt"], flags: [] });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cp: missing destination file operand after 'single.txt'",
+      });
+    });
+
+    test("returns error when missing file operand", () => {
+      const result = executeCommand("cp", { args: [], flags: [] });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cp: missing file operand",
+      });
+    });
+
+    test("returns error on invalid flag option", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("cp", {
+        args: ["a.txt", "b.txt"],
+        flags: ["-z"],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cp: invalid option -- 'z'",
+      });
+    });
+
+    test("cp integrates seamlessly with cat and ls", () => {
+      process.chdir(testBaseDir);
+
+      executeCommand("touch", { args: ["original.txt"], flags: [] });
+      fs.writeFileSync(
+        path.join(testBaseDir, "original.txt"),
+        "copied content"
+      );
+
+      executeCommand("cp", {
+        args: ["original.txt", "duplicate.txt"],
+        flags: [],
+      });
+      expect(executeCommand("ls").output).toContain("duplicate.txt");
+      expect(
+        executeCommand("cat", { args: ["duplicate.txt"], flags: [] }).output
+      ).toBe("copied content");
     });
   });
 });
