@@ -75,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm",
     error: null,
   };
 };
@@ -724,6 +724,129 @@ const catCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const parseRmFlags = (flags) => {
+  let recursive = false;
+  let force = false;
+
+  for (const flag of flags) {
+    if (flag === "--recursive") {
+      recursive = true;
+      continue;
+    }
+    if (flag === "--force") {
+      force = true;
+      continue;
+    }
+    if (flag === "--") {
+      continue;
+    }
+
+    if (!flag.startsWith("-") || flag === "-") {
+      return { error: `rm: invalid option -- '${flag}'` };
+    }
+
+    for (const option of flag.slice(1)) {
+      if (option === "r" || option === "R") {
+        recursive = true;
+      } else if (option === "f") {
+        force = true;
+      } else {
+        return { error: `rm: invalid option -- '${option}'` };
+      }
+    }
+  }
+
+  return { recursive, force };
+};
+
+const rmCommand = ({ args = [], flags = [] }) => {
+  const parsedFlags = parseRmFlags(flags);
+
+  if (parsedFlags.error) {
+    return {
+      output: null,
+      error: parsedFlags.error,
+    };
+  }
+
+  if (args.length === 0) {
+    return {
+      output: null,
+      error: "rm: missing operand",
+    };
+  }
+
+  const { recursive, force } = parsedFlags;
+
+  for (const target of args) {
+    if (target === "") {
+      if (!force) {
+        return {
+          output: null,
+          error: "rm: cannot remove '': No such file or directory",
+        };
+      }
+      continue;
+    }
+
+    if (target === "." || target === "..") {
+      return {
+        output: null,
+        error: `rm: refusing to remove '.' or '..' directory: skipping '${target}'`,
+      };
+    }
+
+    const targetPath = path.resolve(process.cwd(), target);
+
+    const rootPath = path.resolve("/");
+    if (targetPath === rootPath) {
+      return {
+        output: null,
+        error: "rm: it is dangerous to operate recursively on '/'",
+      };
+    }
+
+    if (!fs.existsSync(targetPath)) {
+      if (force) {
+        continue;
+      }
+      return {
+        output: null,
+        error: `rm: cannot remove '${target}': No such file or directory`,
+      };
+    }
+
+    try {
+      const stats = fs.statSync(targetPath);
+
+      if (stats.isDirectory()) {
+        if (!recursive) {
+          return {
+            output: null,
+            error: `rm: cannot remove '${target}': Is a directory`,
+          };
+        }
+
+        fs.rmSync(targetPath, { recursive: true, force: true });
+      } else {
+        fs.unlinkSync(targetPath);
+      }
+    } catch (error) {
+      if (!force) {
+        return {
+          output: null,
+          error: `rm: cannot remove '${target}': ${error.message}`,
+        };
+      }
+    }
+  }
+
+  return {
+    output: "",
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -740,6 +863,7 @@ const commandRegistry = {
   mkdir: mkdirCommand,
   touch: touchCommand,
   cat: catCommand,
+  rm: rmCommand,
 };
 
 /*

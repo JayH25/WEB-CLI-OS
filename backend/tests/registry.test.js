@@ -24,7 +24,7 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, cd, mkdir, touch, and cat", () => {
+  test("help includes pwd, ls, cd, mkdir, touch, cat, and rm", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
@@ -33,6 +33,7 @@ describe("Command Registry", () => {
     expect(result.output).toContain("mkdir");
     expect(result.output).toContain("touch");
     expect(result.output).toContain("cat");
+    expect(result.output).toContain("rm");
   });
 
   test("executes ls in a specified directory", () => {
@@ -722,6 +723,174 @@ describe("Command Registry", () => {
           error: null,
         }
       );
+    });
+  });
+
+  describe("rm command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-rm-"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("removes a single file", () => {
+      process.chdir(testBaseDir);
+      const filePath = path.join(testBaseDir, "to_delete.txt");
+      fs.writeFileSync(filePath, "delete me");
+
+      const result = executeCommand("rm", {
+        args: ["to_delete.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(filePath)).toBe(false);
+    });
+
+    test("returns error when attempting to remove directory without -r", () => {
+      process.chdir(testBaseDir);
+      const dirPath = path.join(testBaseDir, "folder");
+      fs.mkdirSync(dirPath);
+
+      const result = executeCommand("rm", {
+        args: ["folder"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "rm: cannot remove 'folder': Is a directory",
+      });
+      expect(fs.existsSync(dirPath)).toBe(true);
+    });
+
+    test("recursively removes a directory with -r", () => {
+      process.chdir(testBaseDir);
+      const dirPath = path.join(testBaseDir, "folder");
+      fs.mkdirSync(dirPath);
+      fs.writeFileSync(path.join(dirPath, "inner.txt"), "inside");
+
+      const result = executeCommand("rm", {
+        args: ["folder"],
+        flags: ["-r"],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(dirPath)).toBe(false);
+    });
+
+    test("returns error when file does not exist without -f", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("rm", {
+        args: ["nonexistent.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "rm: cannot remove 'nonexistent.txt': No such file or directory",
+      });
+    });
+
+    test("succeeds silently when file does not exist with -f", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("rm", {
+        args: ["nonexistent.txt"],
+        flags: ["-f"],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+    });
+
+    test("supports combined -rf and -fr flags to force remove directories", () => {
+      process.chdir(testBaseDir);
+      const dir1 = path.join(testBaseDir, "dir1");
+      const dir2 = path.join(testBaseDir, "dir2");
+      fs.mkdirSync(dir1);
+      fs.mkdirSync(dir2);
+      fs.writeFileSync(path.join(dir1, "f.txt"), "test");
+
+      const res1 = executeCommand("rm", {
+        args: ["dir1"],
+        flags: ["-rf"],
+      });
+      expect(res1).toEqual({ output: "", error: null });
+      expect(fs.existsSync(dir1)).toBe(false);
+
+      const res2 = executeCommand("rm", {
+        args: ["dir2"],
+        flags: ["-fr"],
+      });
+      expect(res2).toEqual({ output: "", error: null });
+      expect(fs.existsSync(dir2)).toBe(false);
+    });
+
+    test("removes multiple files in one command", () => {
+      process.chdir(testBaseDir);
+      const f1 = path.join(testBaseDir, "f1.txt");
+      const f2 = path.join(testBaseDir, "f2.txt");
+      fs.writeFileSync(f1, "1");
+      fs.writeFileSync(f2, "2");
+
+      const result = executeCommand("rm", {
+        args: ["f1.txt", "f2.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(fs.existsSync(f1)).toBe(false);
+      expect(fs.existsSync(f2)).toBe(false);
+    });
+
+    test("returns error on missing operand", () => {
+      const result = executeCommand("rm", { args: [], flags: [] });
+
+      expect(result).toEqual({
+        output: null,
+        error: "rm: missing operand",
+      });
+    });
+
+    test("returns error on invalid flag option", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("rm", {
+        args: ["f.txt"],
+        flags: ["-z"],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "rm: invalid option -- 'z'",
+      });
+    });
+
+    test("refuses to remove . and ..", () => {
+      process.chdir(testBaseDir);
+      expect(executeCommand("rm", { args: ["."], flags: ["-rf"] })).toEqual({
+        output: null,
+        error: "rm: refusing to remove '.' or '..' directory: skipping '.'",
+      });
+      expect(executeCommand("rm", { args: [".."], flags: ["-rf"] })).toEqual({
+        output: null,
+        error: "rm: refusing to remove '.' or '..' directory: skipping '..'",
+      });
+    });
+
+    test("rm updates ls output dynamically", () => {
+      process.chdir(testBaseDir);
+
+      executeCommand("touch", { args: ["target.txt"], flags: [] });
+      expect(executeCommand("ls").output).toContain("target.txt");
+
+      executeCommand("rm", { args: ["target.txt"], flags: [] });
+      expect(executeCommand("ls").output).not.toContain("target.txt");
     });
   });
 });

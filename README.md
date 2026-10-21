@@ -266,10 +266,10 @@ Implement each of the following commands fully — they must work exactly like t
 - [x] **`cat`** — print the contents of a file
   - [x] `cat filename` — output file content
   - [x] `cat file1 file2` — concatenate and output multiple files
-- [ ] **`echo`** — print text to the terminal
-  - [ ] `echo hello world`
-  - [ ] `echo "hello world"` — quoted string
-  - [ ] `echo $VAR` — print an environment variable (implement later in env section)
+- [x] **`echo`** — print text to the terminal
+  - [x] `echo hello world`
+  - [x] `echo "hello world"` — quoted string
+  - [x] `echo $VAR` — print an environment variable (implement later in env section)
 - [ ] **`rm`** — remove a file
   - [ ] `rm filename`
   - [ ] `rm -r dirname` — recursively remove a directory
