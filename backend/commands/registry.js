@@ -75,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, wc",
     error: null,
   };
 };
@@ -2024,6 +2024,180 @@ const tailCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const parseWcFlags = (flags, rawArgs) => {
+  let countLines = false;
+  let countWords = false;
+  let countBytes = false;
+
+  const files = [];
+  const combined = [];
+
+  for (const flag of flags) {
+    combined.push(flag);
+  }
+  for (const arg of rawArgs) {
+    if (
+      arg.startsWith("-") &&
+      combined.length === flags.length &&
+      files.length === 0
+    ) {
+      combined.push(arg);
+    } else {
+      files.push(arg);
+    }
+  }
+
+  for (const flag of combined) {
+    if (flag === "--lines") {
+      countLines = true;
+      continue;
+    }
+    if (flag === "--words") {
+      countWords = true;
+      continue;
+    }
+    if (flag === "--bytes" || flag === "--chars") {
+      countBytes = true;
+      continue;
+    }
+    if (flag === "--") {
+      continue;
+    }
+
+    if (!flag.startsWith("-") || flag === "-") {
+      return { error: `wc: invalid option -- '${flag}'` };
+    }
+
+    for (const opt of flag.slice(1)) {
+      if (opt === "l") {
+        countLines = true;
+      } else if (opt === "w") {
+        countWords = true;
+      } else if (opt === "c" || opt === "m") {
+        countBytes = true;
+      } else {
+        return { error: `wc: invalid option -- '${opt}'` };
+      }
+    }
+  }
+
+  if (!countLines && !countWords && !countBytes) {
+    countLines = true;
+    countWords = true;
+    countBytes = true;
+  }
+
+  return {
+    countLines,
+    countWords,
+    countBytes,
+    files,
+  };
+};
+
+const wcCommand = ({ args = [], flags = [] }) => {
+  const parsed = parseWcFlags(flags, args);
+
+  if (parsed.error) {
+    return {
+      output: null,
+      error: parsed.error,
+    };
+  }
+
+  const { countLines, countWords, countBytes, files } = parsed;
+
+  if (files.length === 0) {
+    return {
+      output: null,
+      error: "wc: missing file operand",
+    };
+  }
+
+  const outputLines = [];
+  let totalLines = 0;
+  let totalWords = 0;
+  let totalBytes = 0;
+
+  for (const file of files) {
+    if (file === "") {
+      return {
+        output: null,
+        error: "wc: '': No such file or directory",
+      };
+    }
+
+    const filePath = path.resolve(process.cwd(), file);
+
+    if (!fs.existsSync(filePath)) {
+      return {
+        output: null,
+        error: `wc: ${file}: No such file or directory`,
+      };
+    }
+
+    let stats;
+    try {
+      stats = fs.statSync(filePath);
+    } catch (err) {
+      return {
+        output: null,
+        error: `wc: ${file}: ${err.message}`,
+      };
+    }
+
+    if (stats.isDirectory()) {
+      return {
+        output: null,
+        error: `wc: ${file}: Is a directory`,
+      };
+    }
+
+    let content;
+    try {
+      content = fs.readFileSync(filePath, "utf-8");
+    } catch (err) {
+      return {
+        output: null,
+        error: `wc: ${file}: ${err.message}`,
+      };
+    }
+
+    const newlineMatches = content.match(/\n/g);
+    const lineCount = newlineMatches ? newlineMatches.length : 0;
+    const wordMatches = content.match(/\S+/g);
+    const wordCount = wordMatches ? wordMatches.length : 0;
+    const byteCount = Buffer.byteLength(content, "utf-8");
+
+    totalLines += lineCount;
+    totalWords += wordCount;
+    totalBytes += byteCount;
+
+    const parts = [];
+    if (countLines) parts.push(lineCount);
+    if (countWords) parts.push(wordCount);
+    if (countBytes) parts.push(byteCount);
+    parts.push(file);
+
+    outputLines.push(parts.join(" "));
+  }
+
+  if (files.length > 1) {
+    const totalParts = [];
+    if (countLines) totalParts.push(totalLines);
+    if (countWords) totalParts.push(totalWords);
+    if (countBytes) totalParts.push(totalBytes);
+    totalParts.push("total");
+
+    outputLines.push(totalParts.join(" "));
+  }
+
+  return {
+    output: outputLines.join("\n"),
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -2047,6 +2221,7 @@ const commandRegistry = {
   grep: grepCommand,
   head: headCommand,
   tail: tailCommand,
+  wc: wcCommand,
 };
 
 /*

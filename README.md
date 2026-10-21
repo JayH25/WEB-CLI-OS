@@ -290,10 +290,10 @@ Implement each of the following commands fully — they must work exactly like t
   - [x] `grep -i "pattern" filename` — case-insensitive
 - [x] **`head`** — print first N lines of a file (default 10)
 - [x] **`tail`** — print last N lines of a file (default 10)
-- [ ] **`wc`** — word count
-  - [ ] `wc -l filename` — count lines
-  - [ ] `wc -w filename` — count words
-  - [ ] `wc -c filename` — count characters
+- [x] **`wc`** — word count
+  - [x] `wc -l filename` — count lines
+  - [x] `wc -w filename` — count words
+  - [x] `wc -c filename` — count characters
 
 ### 3.3 — File Permissions
 

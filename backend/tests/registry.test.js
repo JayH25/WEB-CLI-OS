@@ -24,7 +24,7 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, and tail", () => {
+  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, and wc", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
@@ -40,6 +40,7 @@ describe("Command Registry", () => {
     expect(result.output).toContain("grep");
     expect(result.output).toContain("head");
     expect(result.output).toContain("tail");
+    expect(result.output).toContain("wc");
   });
 
   test("executes ls in a specified directory", () => {
@@ -1851,6 +1852,144 @@ describe("Command Registry", () => {
       expect(result).toEqual({
         output: null,
         error: "tail: invalid number of lines: 'abc'",
+      });
+    });
+  });
+
+  describe("wc command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-wc-"));
+      // 3 lines, 7 words, 36 bytes (with \n)
+      fs.writeFileSync(
+        path.join(testBaseDir, "sample.txt"),
+        "hello world\nthis is a test\nfinal line\n"
+      );
+      // 1 line, 2 words, 11 bytes
+      fs.writeFileSync(path.join(testBaseDir, "short.txt"), "simple text\n");
+      fs.mkdirSync(path.join(testBaseDir, "a_dir"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("prints lines, words, bytes by default", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("wc", {
+        args: ["sample.txt"],
+        flags: [],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("3 8 38 sample.txt");
+    });
+
+    test("counts lines only with -l", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("wc", {
+        args: ["sample.txt"],
+        flags: ["-l"],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("3 sample.txt");
+    });
+
+    test("counts words only with -w", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("wc", {
+        args: ["sample.txt"],
+        flags: ["-w"],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("8 sample.txt");
+    });
+
+    test("counts bytes only with -c", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("wc", {
+        args: ["sample.txt"],
+        flags: ["-c"],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("38 sample.txt");
+    });
+
+    test("supports combined flags like -lw", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("wc", {
+        args: ["sample.txt"],
+        flags: ["-lw"],
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.output).toBe("3 8 sample.txt");
+    });
+
+    test("outputs counts for multiple files plus a total line", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("wc", {
+        args: ["sample.txt", "short.txt"],
+        flags: ["-l"],
+      });
+
+      expect(result.error).toBeNull();
+      const lines = result.output.split("\n");
+      expect(lines).toEqual(["3 sample.txt", "1 short.txt", "4 total"]);
+    });
+
+    test("returns error when target file does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("wc", {
+        args: ["missing.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "wc: missing.txt: No such file or directory",
+      });
+    });
+
+    test("returns error when target is a directory", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("wc", {
+        args: ["a_dir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "wc: a_dir: Is a directory",
+      });
+    });
+
+    test("returns error on missing file operand", () => {
+      const result = executeCommand("wc", { args: [], flags: [] });
+
+      expect(result).toEqual({
+        output: null,
+        error: "wc: missing file operand",
+      });
+    });
+
+    test("returns error on invalid flag option", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("wc", {
+        args: ["sample.txt"],
+        flags: ["-z"],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "wc: invalid option -- 'z'",
       });
     });
   });
