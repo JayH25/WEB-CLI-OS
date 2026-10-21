@@ -280,10 +280,10 @@ Implement each of the following commands fully — they must work exactly like t
 - [x] **`mv`** — move or rename a file/directory
   - [x] `mv oldname newname`
   - [x] `mv file /another/path/`
-- [ ] **`find`** — search for files
-  - [ ] `find . -name "*.txt"` — find by name
-  - [ ] `find /home -type f` — find files only
-  - [ ] `find /home -type d` — find directories only
+- [x] **`find`** — search for files
+  - [x] `find . -name "*.txt"` — find by name
+  - [x] `find /home -type f` — find files only
+  - [x] `find /home -type d` — find directories only
 - [ ] **`grep`** — search for text within files
   - [ ] `grep "pattern" filename`
   - [ ] `grep -r "pattern" /path` — recursive search

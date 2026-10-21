@@ -75,7 +75,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find",
     error: null,
   };
 };
@@ -1250,6 +1250,196 @@ const mvCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const globMatch = (pattern, str) => {
+  let reStr = "^";
+  for (let i = 0; i < pattern.length; i++) {
+    const c = pattern[i];
+    if (c === "*") {
+      reStr += ".*";
+    } else if (c === "?") {
+      reStr += ".";
+    } else if ("\\.+^$|()[]{}".includes(c)) {
+      reStr += "\\" + c;
+    } else {
+      reStr += c;
+    }
+  }
+  reStr += "$";
+  return new RegExp(reStr).test(str);
+};
+
+const parseFindOptions = (args, flags) => {
+  const hasOptionsInArgs = args.some((arg) => arg.startsWith("-"));
+
+  let paths = [];
+  let namePattern = null;
+  let typeFilter = null;
+
+  if (hasOptionsInArgs) {
+    let i = 0;
+    while (i < args.length) {
+      const token = args[i];
+      if (token === "-name") {
+        if (i + 1 >= args.length) {
+          return { error: "find: missing argument to '-name'" };
+        }
+        namePattern = args[i + 1];
+        i += 2;
+      } else if (token === "-type") {
+        if (i + 1 >= args.length) {
+          return { error: "find: missing argument to '-type'" };
+        }
+        typeFilter = args[i + 1];
+        i += 2;
+      } else if (token.startsWith("-")) {
+        return { error: `find: unknown predicate '${token}'` };
+      } else {
+        paths.push(token);
+        i += 1;
+      }
+    }
+  } else {
+    const optionsQueue = [];
+    for (const flag of flags) {
+      if (flag === "-name" || flag === "-type") {
+        optionsQueue.push(flag);
+      } else {
+        return { error: `find: unknown predicate '${flag}'` };
+      }
+    }
+
+    const neededValues = optionsQueue.length;
+    if (args.length < neededValues) {
+      const missingOption = optionsQueue[args.length];
+      return { error: `find: missing argument to '${missingOption}'` };
+    }
+
+    if (
+      args.length === neededValues &&
+      (args[0] === "." ||
+        args[0] === ".." ||
+        args[0].startsWith("./") ||
+        args[0].startsWith("/") ||
+        args[0].startsWith("\\"))
+    ) {
+      const missingOption = optionsQueue[optionsQueue.length - 1];
+      return { error: `find: missing argument to '${missingOption}'` };
+    }
+
+    const optionValues = args.slice(args.length - neededValues);
+    paths = args.slice(0, args.length - neededValues);
+
+    for (let j = 0; j < optionsQueue.length; j++) {
+      const opt = optionsQueue[j];
+      const val = optionValues[j];
+      if (opt === "-name") {
+        namePattern = val;
+      } else if (opt === "-type") {
+        typeFilter = val;
+      }
+    }
+  }
+
+  if (paths.length === 0) {
+    paths = ["."];
+  }
+
+  if (typeFilter !== null && typeFilter !== "f" && typeFilter !== "d") {
+    return { error: `find: Unknown argument to -type: ${typeFilter}` };
+  }
+
+  return { paths, namePattern, typeFilter };
+};
+
+const findCommand = ({ args = [], flags = [] }) => {
+  const parsed = parseFindOptions(args, flags);
+
+  if (parsed.error) {
+    return {
+      output: null,
+      error: parsed.error,
+    };
+  }
+
+  const { paths, namePattern, typeFilter } = parsed;
+  const results = [];
+
+  const matchesFilter = (itemPath, stats) => {
+    if (typeFilter === "f" && !stats.isFile()) {
+      return false;
+    }
+    if (typeFilter === "d" && !stats.isDirectory()) {
+      return false;
+    }
+    if (namePattern !== null) {
+      const base = path.basename(itemPath);
+      if (!globMatch(namePattern, base)) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  for (const rootRaw of paths) {
+    if (rootRaw === "") {
+      return {
+        output: null,
+        error: "find: '': No such file or directory",
+      };
+    }
+
+    const resolvedRoot = path.resolve(process.cwd(), rootRaw);
+
+    if (!fs.existsSync(resolvedRoot)) {
+      return {
+        output: null,
+        error: `find: '${rootRaw}': No such file or directory`,
+      };
+    }
+
+    const rootNormalized = rootRaw.replace(/\\/g, "/");
+
+    const walk = (currentFullPath, currentDisplayPath) => {
+      let stats;
+      try {
+        stats = fs.statSync(currentFullPath);
+      } catch (_err) {
+        return;
+      }
+
+      if (matchesFilter(currentFullPath, stats)) {
+        results.push(currentDisplayPath);
+      }
+
+      if (stats.isDirectory()) {
+        let entries = [];
+        try {
+          entries = fs.readdirSync(currentFullPath).sort();
+        } catch (_err) {
+          return;
+        }
+
+        for (const entry of entries) {
+          const nextFullPath = path.join(currentFullPath, entry);
+          const nextDisplayPath =
+            currentDisplayPath === "."
+              ? `./${entry}`
+              : `${currentDisplayPath.replace(/\/$/, "")}/${entry}`;
+
+          walk(nextFullPath, nextDisplayPath);
+        }
+      }
+    };
+
+    walk(resolvedRoot, rootNormalized);
+  }
+
+  return {
+    output: results.join("\n"),
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -1269,6 +1459,7 @@ const commandRegistry = {
   rm: rmCommand,
   cp: cpCommand,
   mv: mvCommand,
+  find: findCommand,
 };
 
 /*

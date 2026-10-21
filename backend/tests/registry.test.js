@@ -24,7 +24,7 @@ describe("Command Registry", () => {
     });
   });
 
-  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, cp, and mv", () => {
+  test("help includes pwd, ls, cd, mkdir, touch, cat, rm, cp, mv, and find", () => {
     const result = executeCommand("help");
 
     expect(result.output).toContain("pwd");
@@ -36,6 +36,7 @@ describe("Command Registry", () => {
     expect(result.output).toContain("rm");
     expect(result.output).toContain("cp");
     expect(result.output).toContain("mv");
+    expect(result.output).toContain("find");
   });
 
   test("executes ls in a specified directory", () => {
@@ -1287,6 +1288,146 @@ describe("Command Registry", () => {
       expect(
         executeCommand("cat", { args: ["published.txt"], flags: [] }).output
       ).toBe("final text");
+    });
+  });
+
+  describe("find command", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-find-"));
+      fs.writeFileSync(path.join(testBaseDir, "file1.txt"), "hello");
+      fs.writeFileSync(path.join(testBaseDir, "file2.log"), "log");
+      fs.mkdirSync(path.join(testBaseDir, "subdir"));
+      fs.writeFileSync(
+        path.join(testBaseDir, "subdir", "nested.txt"),
+        "nested"
+      );
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("find . lists root, files, and subdirectories", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("find", { args: ["."], flags: [] });
+
+      expect(result.error).toBeNull();
+      const lines = result.output.split("\n");
+      expect(lines).toContain(".");
+      expect(lines).toContain("./file1.txt");
+      expect(lines).toContain("./file2.log");
+      expect(lines).toContain("./subdir");
+      expect(lines).toContain("./subdir/nested.txt");
+    });
+
+    test("find . -name '*.txt' finds only matching filenames", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("find", {
+        args: [".", "*.txt"],
+        flags: ["-name"],
+      });
+
+      expect(result.error).toBeNull();
+      const lines = result.output.split("\n");
+      expect(lines).toContain("./file1.txt");
+      expect(lines).toContain("./subdir/nested.txt");
+      expect(lines).not.toContain("./file2.log");
+      expect(lines).not.toContain("./subdir");
+    });
+
+    test("find supports linear arguments format", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("find", {
+        args: [".", "-name", "*.txt"],
+        flags: [],
+      });
+
+      expect(result.error).toBeNull();
+      const lines = result.output.split("\n");
+      expect(lines).toContain("./file1.txt");
+      expect(lines).toContain("./subdir/nested.txt");
+    });
+
+    test("find -type f finds files only", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("find", {
+        args: [".", "f"],
+        flags: ["-type"],
+      });
+
+      expect(result.error).toBeNull();
+      const lines = result.output.split("\n");
+      expect(lines).toContain("./file1.txt");
+      expect(lines).toContain("./file2.log");
+      expect(lines).toContain("./subdir/nested.txt");
+      expect(lines).not.toContain("./subdir");
+      expect(lines).not.toContain(".");
+    });
+
+    test("find -type d finds directories only", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("find", {
+        args: [".", "d"],
+        flags: ["-type"],
+      });
+
+      expect(result.error).toBeNull();
+      const lines = result.output.split("\n");
+      expect(lines).toContain(".");
+      expect(lines).toContain("./subdir");
+      expect(lines).not.toContain("./file1.txt");
+    });
+
+    test("find combines -name and -type filters", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("find", {
+        args: [".", "-name", "*.txt", "-type", "f"],
+        flags: [],
+      });
+
+      expect(result.error).toBeNull();
+      const lines = result.output.split("\n");
+      expect(lines).toEqual(["./file1.txt", "./subdir/nested.txt"]);
+    });
+
+    test("returns error when target path does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("find", {
+        args: ["nonexistent_path"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "find: 'nonexistent_path': No such file or directory",
+      });
+    });
+
+    test("returns error when missing argument to -name or -type", () => {
+      const errName = executeCommand("find", {
+        args: ["."],
+        flags: ["-name"],
+      });
+      expect(errName.error).toBe("find: missing argument to '-name'");
+
+      const errType = executeCommand("find", {
+        args: ["."],
+        flags: ["-type"],
+      });
+      expect(errType.error).toBe("find: missing argument to '-type'");
+    });
+
+    test("returns error on unknown argument to -type", () => {
+      const result = executeCommand("find", {
+        args: [".", "x"],
+        flags: ["-type"],
+      });
+      expect(result.error).toBe("find: Unknown argument to -type: x");
     });
   });
 });
