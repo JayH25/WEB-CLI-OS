@@ -49,14 +49,106 @@ const parseLsFlags = (flags) => {
   return { showAll, longFormat };
 };
 
+// ---------------------------------------------------------
+// Node Metadata & File Permissions (Phase 3.3)
+// ---------------------------------------------------------
+const nodeMetadataStore = new Map();
+
+const digitToPerm = (d) => {
+  const num = parseInt(d, 10);
+  return (num & 4 ? "r" : "-") + (num & 2 ? "w" : "-") + (num & 1 ? "x" : "-");
+};
+
+const modeToPermissionString = (mode) => {
+  let octalStr = "";
+  if (typeof mode === "number") {
+    octalStr = mode > 0o777 ? mode.toString() : mode.toString(8);
+  } else if (typeof mode === "string") {
+    octalStr = mode.trim();
+  }
+  if (octalStr.length > 3) {
+    octalStr = octalStr.slice(-3);
+  }
+  while (octalStr.length < 3) {
+    octalStr = "0" + octalStr;
+  }
+  return (
+    digitToPerm(octalStr[0]) +
+    digitToPerm(octalStr[1]) +
+    digitToPerm(octalStr[2])
+  );
+};
+
+const permissionStringToMode = (str) => {
+  if (typeof str !== "string" || str.length !== 9) return 0o755;
+  const r1 = str[0] === "r" ? 4 : 0;
+  const w1 = str[1] === "w" ? 2 : 0;
+  const x1 = str[2] === "x" ? 1 : 0;
+  const u = r1 + w1 + x1;
+
+  const r2 = str[3] === "r" ? 4 : 0;
+  const w2 = str[4] === "w" ? 2 : 0;
+  const x2 = str[5] === "x" ? 1 : 0;
+  const g = r2 + w2 + x2;
+
+  const r3 = str[6] === "r" ? 4 : 0;
+  const w3 = str[7] === "w" ? 2 : 0;
+  const x3 = str[8] === "x" ? 1 : 0;
+  const o = r3 + w3 + x3;
+
+  return u * 64 + g * 8 + o;
+};
+
+const resetNodeMetadata = () => {
+  nodeMetadataStore.clear();
+};
+
+const getNodeMetadata = (targetPath) => {
+  const resolved = path.resolve(process.cwd(), targetPath);
+  if (nodeMetadataStore.has(resolved)) {
+    return nodeMetadataStore.get(resolved);
+  }
+
+  let isDir = false;
+  try {
+    isDir = fs.statSync(resolved).isDirectory();
+  } catch (_err) {
+    // fallback if non-existent yet
+  }
+
+  const defaultMeta = {
+    permissions: isDir ? "rwxr-xr-x" : "rw-r--r--",
+    owner: "guest_user",
+    group: "users",
+  };
+
+  nodeMetadataStore.set(resolved, defaultMeta);
+  return defaultMeta;
+};
+
+const setNodeMetadata = (targetPath, meta) => {
+  const resolved = path.resolve(process.cwd(), targetPath);
+  const current = getNodeMetadata(resolved);
+  const updated = {
+    ...current,
+    ...meta,
+  };
+  nodeMetadataStore.set(resolved, updated);
+  return updated;
+};
+
 const buildLsEntry = (entryPath, displayName) => {
   const stats = fs.statSync(entryPath);
+  const meta = getNodeMetadata(entryPath);
 
   return {
     name: displayName,
     type: stats.isDirectory() ? "directory" : "file",
     size: stats.size,
     date: formatDateTime(stats.mtime),
+    permissions: meta.permissions,
+    owner: meta.owner,
+    group: meta.group,
   };
 };
 
@@ -64,7 +156,8 @@ const formatLsOutput = (entries, longFormat) => {
   if (longFormat) {
     return entries
       .map(
-        (entry) => `${entry.name}\t${entry.type}\t${entry.size}\t${entry.date}`
+        (entry) =>
+          `${entry.name}\t${entry.type}\t${entry.size}\t${entry.date}\t${entry.permissions}\t${entry.owner}\t${entry.group}`
       )
       .join("\n");
   }
@@ -500,6 +593,11 @@ const mkdirCommand = ({ args = [], flags = [] }) => {
         }
 
         fs.mkdirSync(targetPath);
+        setNodeMetadata(targetPath, {
+          permissions: "rwxr-xr-x",
+          owner: "guest_user",
+          group: "users",
+        });
       } catch (error) {
         return {
           output: null,
@@ -606,6 +704,11 @@ const touchCommand = ({ args = [], flags = [] }) => {
         }
 
         fs.writeFileSync(targetPath, "");
+        setNodeMetadata(targetPath, {
+          permissions: "rw-r--r--",
+          owner: "guest_user",
+          group: "users",
+        });
       } catch (error) {
         return {
           output: null,
@@ -831,6 +934,7 @@ const rmCommand = ({ args = [], flags = [] }) => {
       } else {
         fs.unlinkSync(targetPath);
       }
+      nodeMetadataStore.delete(targetPath);
     } catch (error) {
       if (!force) {
         return {
@@ -1030,6 +1134,8 @@ const cpCommand = ({ args = [], flags = [] }) => {
       } else {
         fs.copyFileSync(srcPath, targetDestPath);
       }
+      const srcMeta = getNodeMetadata(srcPath);
+      setNodeMetadata(targetDestPath, { ...srcMeta });
     } catch (error) {
       return {
         output: null,
@@ -1236,6 +1342,9 @@ const mvCommand = ({ args = [], flags = [] }) => {
           throw renameErr;
         }
       }
+      const srcMeta = getNodeMetadata(srcPath);
+      nodeMetadataStore.delete(srcPath);
+      setNodeMetadata(targetDestPath, { ...srcMeta });
     } catch (error) {
       return {
         output: null,
@@ -2266,4 +2375,9 @@ module.exports = {
   resetPreviousWorkingDirectory,
   getPreviousWorkingDirectory,
   setPreviousWorkingDirectory,
+  getNodeMetadata,
+  setNodeMetadata,
+  resetNodeMetadata,
+  modeToPermissionString,
+  permissionStringToMode,
 };

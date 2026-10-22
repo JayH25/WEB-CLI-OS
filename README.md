@@ -297,8 +297,8 @@ Implement each of the following commands fully — they must work exactly like t
 
 ### 3.3 — File Permissions
 
-- [ ] Add `permissions`, `owner`, and `group` fields to each file/directory node
-- [ ] Use Unix-style permission strings: `rwxr-xr-x`
+- [x] Add `permissions`, `owner`, and `group` fields to each file/directory node
+- [x] Use Unix-style permission strings: `rwxr-xr-x`
 - [ ] Implement **`chmod`** — change file permissions
   - [ ] `chmod 755 filename` — numeric mode
   - [ ] `chmod u+x filename` — symbolic mode

@@ -6,6 +6,11 @@ const path = require("path");
 const {
   executeCommand,
   resetPreviousWorkingDirectory,
+  getNodeMetadata,
+  setNodeMetadata,
+  resetNodeMetadata,
+  modeToPermissionString,
+  permissionStringToMode,
 } = require("../commands/registry");
 
 describe("Command Registry", () => {
@@ -1991,6 +1996,135 @@ describe("Command Registry", () => {
         output: null,
         error: "wc: invalid option -- 'z'",
       });
+    });
+  });
+
+  describe("file permissions and node metadata (Phase 3.3)", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      resetNodeMetadata();
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-perm-"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      resetNodeMetadata();
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("converts numeric mode to Unix permission string", () => {
+      expect(modeToPermissionString(0o755)).toBe("rwxr-xr-x");
+      expect(modeToPermissionString("755")).toBe("rwxr-xr-x");
+      expect(modeToPermissionString(0o644)).toBe("rw-r--r--");
+      expect(modeToPermissionString("644")).toBe("rw-r--r--");
+      expect(modeToPermissionString(0o777)).toBe("rwxrwxrwx");
+      expect(modeToPermissionString(0o600)).toBe("rw-------");
+    });
+
+    test("converts Unix permission string to numeric octal mode", () => {
+      expect(permissionStringToMode("rwxr-xr-x")).toBe(0o755);
+      expect(permissionStringToMode("rw-r--r--")).toBe(0o644);
+      expect(permissionStringToMode("rwxrwxrwx")).toBe(0o777);
+      expect(permissionStringToMode("rw-------")).toBe(0o600);
+    });
+
+    test("touch creates a file with default permissions, owner, and group", () => {
+      process.chdir(testBaseDir);
+      const filePath = path.join(testBaseDir, "file.txt");
+      executeCommand("touch", { args: ["file.txt"], flags: [] });
+
+      const meta = getNodeMetadata(filePath);
+      expect(meta.permissions).toBe("rw-r--r--");
+      expect(meta.owner).toBe("guest_user");
+      expect(meta.group).toBe("users");
+    });
+
+    test("mkdir creates a directory with default permissions, owner, and group", () => {
+      process.chdir(testBaseDir);
+      const dirPath = path.join(testBaseDir, "folder");
+      executeCommand("mkdir", { args: ["folder"], flags: [] });
+
+      const meta = getNodeMetadata(dirPath);
+      expect(meta.permissions).toBe("rwxr-xr-x");
+      expect(meta.owner).toBe("guest_user");
+      expect(meta.group).toBe("users");
+    });
+
+    test("ls -l displays permissions, owner, and group", () => {
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["sample.txt"], flags: [] });
+      executeCommand("mkdir", { args: ["testdir"], flags: [] });
+
+      const result = executeCommand("ls", { args: [], flags: ["-l"] });
+      expect(result.error).toBeNull();
+
+      const lines = result.output.split("\n");
+      const sampleLine = lines.find((l) => l.startsWith("sample.txt"));
+      expect(sampleLine).toBeDefined();
+      const sampleParts = sampleLine.split("\t");
+      expect(sampleParts[0]).toBe("sample.txt");
+      expect(sampleParts[1]).toBe("file");
+      expect(sampleParts[4]).toBe("rw-r--r--");
+      expect(sampleParts[5]).toBe("guest_user");
+      expect(sampleParts[6]).toBe("users");
+
+      const dirLine = lines.find((l) => l.startsWith("testdir"));
+      expect(dirLine).toBeDefined();
+      const dirParts = dirLine.split("\t");
+      expect(dirParts[0]).toBe("testdir");
+      expect(dirParts[1]).toBe("directory");
+      expect(dirParts[4]).toBe("rwxr-xr-x");
+      expect(dirParts[5]).toBe("guest_user");
+      expect(dirParts[6]).toBe("users");
+    });
+
+    test("cp preserves node metadata in destination", () => {
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["orig.txt"], flags: [] });
+      const origPath = path.join(testBaseDir, "orig.txt");
+      setNodeMetadata(origPath, {
+        permissions: "rwxrwxrwx",
+        owner: "admin",
+        group: "wheel",
+      });
+
+      executeCommand("cp", { args: ["orig.txt", "copy.txt"], flags: [] });
+      const copyPath = path.join(testBaseDir, "copy.txt");
+      const copyMeta = getNodeMetadata(copyPath);
+      expect(copyMeta.permissions).toBe("rwxrwxrwx");
+      expect(copyMeta.owner).toBe("admin");
+      expect(copyMeta.group).toBe("wheel");
+    });
+
+    test("mv preserves node metadata and removes old metadata", () => {
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["old.txt"], flags: [] });
+      const oldPath = path.join(testBaseDir, "old.txt");
+      setNodeMetadata(oldPath, {
+        permissions: "rwxr-x---",
+        owner: "dev",
+        group: "developers",
+      });
+
+      executeCommand("mv", { args: ["old.txt", "new.txt"], flags: [] });
+      const newPath = path.join(testBaseDir, "new.txt");
+      const newMeta = getNodeMetadata(newPath);
+      expect(newMeta.permissions).toBe("rwxr-x---");
+      expect(newMeta.owner).toBe("dev");
+      expect(newMeta.group).toBe("developers");
+    });
+
+    test("rm removes node metadata on deletion", () => {
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["delete_me.txt"], flags: [] });
+      const delPath = path.join(testBaseDir, "delete_me.txt");
+      expect(getNodeMetadata(delPath).owner).toBe("guest_user");
+
+      executeCommand("rm", { args: ["delete_me.txt"], flags: [] });
+      expect(fs.existsSync(delPath)).toBe(false);
     });
   });
 });
