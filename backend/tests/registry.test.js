@@ -2127,4 +2127,107 @@ describe("Command Registry", () => {
       expect(fs.existsSync(delPath)).toBe(false);
     });
   });
+
+  describe("chmod command - numeric mode (Phase 3.3)", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      resetNodeMetadata();
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-chmod-"));
+      fs.writeFileSync(path.join(testBaseDir, "file1.txt"), "hello");
+      fs.writeFileSync(path.join(testBaseDir, "file2.txt"), "world");
+      fs.mkdirSync(path.join(testBaseDir, "subdir"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      resetNodeMetadata();
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("changes file permissions using numeric octal mode (chmod 755)", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "file1.txt");
+
+      const result = executeCommand("chmod", {
+        args: ["755", "file1.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      const meta = getNodeMetadata(target);
+      expect(meta.permissions).toBe("rwxr-xr-x");
+    });
+
+    test("changes directory permissions using numeric octal mode (chmod 700)", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "subdir");
+
+      const result = executeCommand("chmod", {
+        args: ["700", "subdir"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      const meta = getNodeMetadata(target);
+      expect(meta.permissions).toBe("rwx------");
+    });
+
+    test("changes permissions of multiple files at once", () => {
+      process.chdir(testBaseDir);
+      const target1 = path.join(testBaseDir, "file1.txt");
+      const target2 = path.join(testBaseDir, "file2.txt");
+
+      const result = executeCommand("chmod", {
+        args: ["600", "file1.txt", "file2.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(getNodeMetadata(target1).permissions).toBe("rw-------");
+      expect(getNodeMetadata(target2).permissions).toBe("rw-------");
+    });
+
+    test("returns error on missing operand", () => {
+      const result = executeCommand("chmod", { args: [], flags: [] });
+      expect(result).toEqual({
+        output: null,
+        error: "chmod: missing operand",
+      });
+    });
+
+    test("returns error on missing operand after mode", () => {
+      const result = executeCommand("chmod", { args: ["755"], flags: [] });
+      expect(result).toEqual({
+        output: null,
+        error: "chmod: missing operand after '755'",
+      });
+    });
+
+    test("returns error when target file does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("chmod", {
+        args: ["755", "missing.txt"],
+        flags: [],
+      });
+      expect(result).toEqual({
+        output: null,
+        error: "chmod: cannot access 'missing.txt': No such file or directory",
+      });
+    });
+
+    test("returns error when mode is invalid", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("chmod", {
+        args: ["999", "file1.txt"],
+        flags: [],
+      });
+      expect(result).toEqual({
+        output: null,
+        error: "chmod: invalid mode: '999'",
+      });
+    });
+  });
 });

@@ -168,7 +168,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, wc",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, wc, chmod",
     error: null,
   };
 };
@@ -2307,6 +2307,93 @@ const wcCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const chmodCommand = ({ args = [], flags = [] }) => {
+  if (args.length === 0 && flags.length === 0) {
+    return {
+      output: null,
+      error: "chmod: missing operand",
+    };
+  }
+
+  let mode = null;
+  const files = [];
+
+  for (const flag of flags) {
+    if (flag === "-R") {
+      // recursive flag placeholder
+    } else if (/^-[rwxXstugo+=-]+$/.test(flag) && !mode) {
+      mode = flag;
+    } else {
+      return {
+        output: null,
+        error: `chmod: invalid option -- '${flag.replace(/^-+/, "")}'`,
+      };
+    }
+  }
+
+  let argIndex = 0;
+  if (!mode) {
+    if (args.length === 0) {
+      return {
+        output: null,
+        error: "chmod: missing operand",
+      };
+    }
+    mode = args[0];
+    argIndex = 1;
+  }
+
+  for (let i = argIndex; i < args.length; i++) {
+    files.push(args[i]);
+  }
+
+  if (files.length === 0) {
+    return {
+      output: null,
+      error: `chmod: missing operand after '${mode}'`,
+    };
+  }
+
+  const isNumeric = /^[0-7]{3,4}$/.test(mode);
+  if (!isNumeric) {
+    return {
+      output: null,
+      error: `chmod: invalid mode: '${mode}'`,
+    };
+  }
+
+  const permString = modeToPermissionString(mode);
+
+  for (const file of files) {
+    if (file === "") {
+      return {
+        output: null,
+        error: "chmod: cannot access '': No such file or directory",
+      };
+    }
+
+    const resolvedPath = path.resolve(process.cwd(), file);
+    if (!fs.existsSync(resolvedPath)) {
+      return {
+        output: null,
+        error: `chmod: cannot access '${file}': No such file or directory`,
+      };
+    }
+
+    setNodeMetadata(resolvedPath, { permissions: permString });
+    try {
+      fs.chmodSync(resolvedPath, parseInt(mode, 8));
+    } catch (_err) {
+      // Windows compatibility
+    }
+  }
+
+  return {
+    output: "",
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -2331,6 +2418,7 @@ const commandRegistry = {
   head: headCommand,
   tail: tailCommand,
   wc: wcCommand,
+  chmod: chmodCommand,
 };
 
 /*
