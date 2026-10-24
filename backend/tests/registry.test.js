@@ -11,6 +11,7 @@ const {
   resetNodeMetadata,
   modeToPermissionString,
   permissionStringToMode,
+  parseSymbolicMode,
 } = require("../commands/registry");
 
 describe("Command Registry", () => {
@@ -2227,6 +2228,126 @@ describe("Command Registry", () => {
       expect(result).toEqual({
         output: null,
         error: "chmod: invalid mode: '999'",
+      });
+    });
+  });
+
+  describe("chmod command - symbolic mode (Phase 3.3)", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      resetNodeMetadata();
+      testBaseDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "web-cli-os-chmod-sym-")
+      );
+      fs.writeFileSync(path.join(testBaseDir, "file1.txt"), "hello");
+      fs.writeFileSync(path.join(testBaseDir, "file2.txt"), "world");
+      fs.mkdirSync(path.join(testBaseDir, "subdir"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      resetNodeMetadata();
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("parseSymbolicMode accurately applies clauses", () => {
+      expect(parseSymbolicMode("rw-r--r--", "u+x")).toBe("rwxr--r--");
+      expect(parseSymbolicMode("rw-r--r--", "g-r")).toBe("rw----r--");
+      expect(parseSymbolicMode("rw-r--r--", "go-r")).toBe("rw-------");
+      expect(parseSymbolicMode("rw-r--r--", "a=rwx")).toBe("rwxrwxrwx");
+      expect(parseSymbolicMode("rw-r--r--", "+x")).toBe("rwxr-xr-x");
+      expect(parseSymbolicMode("rwxrwxrwx", "go-w,o-x")).toBe("rwxr-xr--");
+    });
+
+    test("adds execute permission for owner (chmod u+x)", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "file1.txt");
+      // Default file perm is rw-r--r--
+      const result = executeCommand("chmod", {
+        args: ["u+x", "file1.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(getNodeMetadata(target).permissions).toBe("rwxr--r--");
+    });
+
+    test("removes read permission for group (chmod g-r)", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "file1.txt");
+      const result = executeCommand("chmod", {
+        args: ["g-r", "file1.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(getNodeMetadata(target).permissions).toBe("rw----r--");
+    });
+
+    test("sets exact permissions using = operator (chmod u=rwx,go=r)", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "file1.txt");
+      const result = executeCommand("chmod", {
+        args: ["u=rwx,go=r", "file1.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(getNodeMetadata(target).permissions).toBe("rwxr--r--");
+    });
+
+    test("supports shorthand +x on files", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "file1.txt");
+      const result = executeCommand("chmod", {
+        args: ["+x", "file1.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(getNodeMetadata(target).permissions).toBe("rwxr-xr-x");
+    });
+
+    test("supports flag-extracted negative symbolic mode (-w)", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "file1.txt");
+      const result = executeCommand("chmod", {
+        args: ["file1.txt"],
+        flags: ["-w"],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(getNodeMetadata(target).permissions).toBe("r--r--r--");
+    });
+
+    test("applies symbolic mode across multiple targets", () => {
+      process.chdir(testBaseDir);
+      const target1 = path.join(testBaseDir, "file1.txt");
+      const target2 = path.join(testBaseDir, "file2.txt");
+
+      const result = executeCommand("chmod", {
+        args: ["a+x", "file1.txt", "file2.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(getNodeMetadata(target1).permissions).toBe("rwxr-xr-x");
+      expect(getNodeMetadata(target2).permissions).toBe("rwxr-xr-x");
+    });
+
+    test("returns error when symbolic syntax is invalid", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("chmod", {
+        args: ["u*x", "file1.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "chmod: invalid mode: 'u*x'",
       });
     });
   });

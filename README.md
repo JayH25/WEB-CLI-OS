@@ -299,9 +299,9 @@ Implement each of the following commands fully — they must work exactly like t
 
 - [x] Add `permissions`, `owner`, and `group` fields to each file/directory node
 - [x] Use Unix-style permission strings: `rwxr-xr-x`
-- [ ] Implement **`chmod`** — change file permissions
+- [x] Implement **`chmod`** — change file permissions
   - [x] `chmod 755 filename` — numeric mode
-  - [ ] `chmod u+x filename` — symbolic mode
+  - [x] `chmod u+x filename` — symbolic mode
 - [ ] Implement **`chown`** — change file owner (simulated)
 - [ ] Enforce permissions: when a command tries to read/write/execute, check if the current user has permission, and return a `Permission denied` error if not
 

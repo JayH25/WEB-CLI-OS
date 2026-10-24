@@ -2307,6 +2307,52 @@ const wcCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const parseSymbolicMode = (currentPerms, modeStr) => {
+  const clauses = modeStr.split(",");
+  const chars = currentPerms.split("");
+
+  for (const clause of clauses) {
+    const trimmed = clause.trim();
+    const match = trimmed.match(/^([ugoa]*)([+=-])([rwx]*)$/);
+    if (!match) {
+      return null;
+    }
+    const [, who, op, permChars] = match;
+
+    const targets = [];
+    if (!who || who.includes("a")) {
+      targets.push("u", "g", "o");
+    } else {
+      if (who.includes("u")) targets.push("u");
+      if (who.includes("g")) targets.push("g");
+      if (who.includes("o")) targets.push("o");
+    }
+
+    const hasR = permChars.includes("r");
+    const hasW = permChars.includes("w");
+    const hasX = permChars.includes("x");
+
+    for (const target of targets) {
+      const baseIdx = target === "u" ? 0 : target === "g" ? 3 : 6;
+      if (op === "+") {
+        if (hasR) chars[baseIdx] = "r";
+        if (hasW) chars[baseIdx + 1] = "w";
+        if (hasX) chars[baseIdx + 2] = "x";
+      } else if (op === "-") {
+        if (hasR) chars[baseIdx] = "-";
+        if (hasW) chars[baseIdx + 1] = "-";
+        if (hasX) chars[baseIdx + 2] = "-";
+      } else if (op === "=") {
+        chars[baseIdx] = hasR ? "r" : "-";
+        chars[baseIdx + 1] = hasW ? "w" : "-";
+        chars[baseIdx + 2] = hasX ? "x" : "-";
+      }
+    }
+  }
+
+  return chars.join("");
+};
+
 const chmodCommand = ({ args = [], flags = [] }) => {
   if (args.length === 0 && flags.length === 0) {
     return {
@@ -2355,14 +2401,15 @@ const chmodCommand = ({ args = [], flags = [] }) => {
   }
 
   const isNumeric = /^[0-7]{3,4}$/.test(mode);
-  if (!isNumeric) {
+  const isValidSymbolic =
+    !isNumeric && parseSymbolicMode("rwxrwxrwx", mode) !== null;
+
+  if (!isNumeric && !isValidSymbolic) {
     return {
       output: null,
       error: `chmod: invalid mode: '${mode}'`,
     };
   }
-
-  const permString = modeToPermissionString(mode);
 
   for (const file of files) {
     if (file === "") {
@@ -2380,9 +2427,17 @@ const chmodCommand = ({ args = [], flags = [] }) => {
       };
     }
 
+    let permString;
+    if (isNumeric) {
+      permString = modeToPermissionString(mode);
+    } else {
+      const currentPerms = getNodeMetadata(resolvedPath).permissions;
+      permString = parseSymbolicMode(currentPerms, mode);
+    }
+
     setNodeMetadata(resolvedPath, { permissions: permString });
     try {
-      fs.chmodSync(resolvedPath, parseInt(mode, 8));
+      fs.chmodSync(resolvedPath, permissionStringToMode(permString));
     } catch (_err) {
       // Windows compatibility
     }
@@ -2468,4 +2523,5 @@ module.exports = {
   resetNodeMetadata,
   modeToPermissionString,
   permissionStringToMode,
+  parseSymbolicMode,
 };
