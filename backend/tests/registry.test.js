@@ -2351,4 +2351,126 @@ describe("Command Registry", () => {
       });
     });
   });
+
+  describe("chown command (Phase 3.3)", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      resetNodeMetadata();
+      testBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-cli-os-chown-"));
+      fs.writeFileSync(path.join(testBaseDir, "file1.txt"), "hello");
+      fs.writeFileSync(path.join(testBaseDir, "file2.txt"), "world");
+      fs.mkdirSync(path.join(testBaseDir, "subdir"));
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      resetNodeMetadata();
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("changes file owner (chown alice filename)", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "file1.txt");
+
+      const result = executeCommand("chown", {
+        args: ["alice", "file1.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      const meta = getNodeMetadata(target);
+      expect(meta.owner).toBe("alice");
+      expect(meta.group).toBe("users");
+    });
+
+    test("changes both owner and group (chown alice:developers filename)", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "file1.txt");
+
+      const result = executeCommand("chown", {
+        args: ["alice:developers", "file1.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      const meta = getNodeMetadata(target);
+      expect(meta.owner).toBe("alice");
+      expect(meta.group).toBe("developers");
+    });
+
+    test("changes group only using colon syntax (chown :admins filename)", () => {
+      process.chdir(testBaseDir);
+      const target = path.join(testBaseDir, "file1.txt");
+
+      const result = executeCommand("chown", {
+        args: [":admins", "file1.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      const meta = getNodeMetadata(target);
+      expect(meta.owner).toBe("guest_user");
+      expect(meta.group).toBe("admins");
+    });
+
+    test("changes owner across multiple files", () => {
+      process.chdir(testBaseDir);
+      const target1 = path.join(testBaseDir, "file1.txt");
+      const target2 = path.join(testBaseDir, "file2.txt");
+
+      const result = executeCommand("chown", {
+        args: ["bob:staff", "file1.txt", "file2.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({ output: "", error: null });
+      expect(getNodeMetadata(target1).owner).toBe("bob");
+      expect(getNodeMetadata(target1).group).toBe("staff");
+      expect(getNodeMetadata(target2).owner).toBe("bob");
+      expect(getNodeMetadata(target2).group).toBe("staff");
+    });
+
+    test("returns error on missing operand", () => {
+      const result = executeCommand("chown", { args: [], flags: [] });
+      expect(result).toEqual({
+        output: null,
+        error: "chown: missing operand",
+      });
+    });
+
+    test("returns error on missing operand after spec", () => {
+      const result = executeCommand("chown", { args: ["alice"], flags: [] });
+      expect(result).toEqual({
+        output: null,
+        error: "chown: missing operand after 'alice'",
+      });
+    });
+
+    test("returns error when target file does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("chown", {
+        args: ["alice", "missing.txt"],
+        flags: [],
+      });
+      expect(result).toEqual({
+        output: null,
+        error: "chown: cannot access 'missing.txt': No such file or directory",
+      });
+    });
+
+    test("returns error on invalid flag option", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("chown", {
+        args: ["alice", "file1.txt"],
+        flags: ["-z"],
+      });
+      expect(result).toEqual({
+        output: null,
+        error: "chown: invalid option -- 'z'",
+      });
+    });
+  });
 });

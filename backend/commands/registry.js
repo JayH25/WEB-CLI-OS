@@ -168,7 +168,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, wc, chmod",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, wc, chmod, chown",
     error: null,
   };
 };
@@ -2449,6 +2449,74 @@ const chmodCommand = ({ args = [], flags = [] }) => {
   };
 };
 
+const chownCommand = ({ args = [], flags = [] }) => {
+  for (const flag of flags) {
+    if (flag !== "-R") {
+      return {
+        output: null,
+        error: `chown: invalid option -- '${flag.replace(/^-+/, "")}'`,
+      };
+    }
+  }
+
+  if (args.length === 0) {
+    return {
+      output: null,
+      error: "chown: missing operand",
+    };
+  }
+
+  const spec = args[0];
+  const files = args.slice(1);
+
+  if (files.length === 0) {
+    return {
+      output: null,
+      error: `chown: missing operand after '${spec}'`,
+    };
+  }
+
+  let newOwner = null;
+  let newGroup = null;
+
+  if (spec.includes(":") || spec.includes(".")) {
+    const delimiter = spec.includes(":") ? ":" : ".";
+    const parts = spec.split(delimiter);
+    newOwner = parts[0] || null;
+    newGroup = parts[1] || null;
+  } else {
+    newOwner = spec;
+  }
+
+  for (const file of files) {
+    if (file === "") {
+      return {
+        output: null,
+        error: "chown: cannot access '': No such file or directory",
+      };
+    }
+
+    const resolvedPath = path.resolve(process.cwd(), file);
+    if (!fs.existsSync(resolvedPath)) {
+      return {
+        output: null,
+        error: `chown: cannot access '${file}': No such file or directory`,
+      };
+    }
+
+    const updates = {};
+    if (newOwner) updates.owner = newOwner;
+    if (newGroup) updates.group = newGroup;
+
+    setNodeMetadata(resolvedPath, updates);
+  }
+
+  return {
+    output: "",
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -2474,6 +2542,7 @@ const commandRegistry = {
   tail: tailCommand,
   wc: wcCommand,
   chmod: chmodCommand,
+  chown: chownCommand,
 };
 
 /*
