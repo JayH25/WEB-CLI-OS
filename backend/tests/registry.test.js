@@ -12,6 +12,10 @@ const {
   modeToPermissionString,
   permissionStringToMode,
   parseSymbolicMode,
+  getCurrentUser,
+  setCurrentUser,
+  resetCurrentUser,
+  hasPermission,
 } = require("../commands/registry");
 
 describe("Command Registry", () => {
@@ -2471,6 +2475,139 @@ describe("Command Registry", () => {
         output: null,
         error: "chown: invalid option -- 'z'",
       });
+    });
+  });
+
+  describe("permission enforcement (Phase 3.3)", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      resetNodeMetadata();
+      resetCurrentUser();
+      testBaseDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "web-cli-os-perm-enforce-")
+      );
+      fs.writeFileSync(
+        path.join(testBaseDir, "file.txt"),
+        "secret data\nline 2"
+      );
+      fs.writeFileSync(path.join(testBaseDir, "writable.txt"), "can write");
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      resetNodeMetadata();
+      resetCurrentUser();
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("hasPermission correctly validates user/group/other access", () => {
+      expect(getCurrentUser()).toEqual({
+        user: "guest_user",
+        group: "users",
+      });
+      process.chdir(testBaseDir);
+      const filePath = path.join(testBaseDir, "file.txt");
+      // 640: u=rw, g=r, o=none
+      executeCommand("chmod", { args: ["640", "file.txt"], flags: [] });
+
+      expect(hasPermission(filePath, "r", "guest_user", "users")).toBe(true);
+      expect(hasPermission(filePath, "w", "guest_user", "users")).toBe(true);
+      expect(hasPermission(filePath, "r", "colleague", "users")).toBe(true);
+      expect(hasPermission(filePath, "w", "colleague", "users")).toBe(false);
+      expect(hasPermission(filePath, "r", "stranger", "othergroup")).toBe(
+        false
+      );
+    });
+
+    test("cat returns Permission denied when file has no read permission", () => {
+      process.chdir(testBaseDir);
+      executeCommand("chmod", { args: ["000", "file.txt"], flags: [] });
+
+      const result = executeCommand("cat", {
+        args: ["file.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "cat: file.txt: Permission denied",
+      });
+    });
+
+    test("head and tail return Permission denied when file has no read permission", () => {
+      process.chdir(testBaseDir);
+      executeCommand("chmod", { args: ["000", "file.txt"], flags: [] });
+
+      expect(executeCommand("head", { args: ["file.txt"], flags: [] })).toEqual(
+        {
+          output: null,
+          error: "head: cannot open 'file.txt' for reading: Permission denied",
+        }
+      );
+
+      expect(executeCommand("tail", { args: ["file.txt"], flags: [] })).toEqual(
+        {
+          output: null,
+          error: "tail: cannot open 'file.txt' for reading: Permission denied",
+        }
+      );
+    });
+
+    test("wc returns Permission denied when file has no read permission", () => {
+      process.chdir(testBaseDir);
+      executeCommand("chmod", { args: ["000", "file.txt"], flags: [] });
+
+      expect(executeCommand("wc", { args: ["file.txt"], flags: [] })).toEqual({
+        output: null,
+        error: "wc: file.txt: Permission denied",
+      });
+    });
+
+    test("touch on existing file returns Permission denied when no write permission", () => {
+      process.chdir(testBaseDir);
+      executeCommand("chmod", { args: ["444", "file.txt"], flags: [] });
+
+      const result = executeCommand("touch", {
+        args: ["file.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "touch: cannot touch 'file.txt': Permission denied",
+      });
+    });
+
+    test("rm returns Permission denied when no write permission", () => {
+      process.chdir(testBaseDir);
+      executeCommand("chmod", { args: ["444", "file.txt"], flags: [] });
+
+      const result = executeCommand("rm", {
+        args: ["file.txt"],
+        flags: [],
+      });
+
+      expect(result).toEqual({
+        output: null,
+        error: "rm: cannot remove 'file.txt': Permission denied",
+      });
+    });
+
+    test("root user bypasses permission restrictions", () => {
+      process.chdir(testBaseDir);
+      executeCommand("chmod", { args: ["000", "file.txt"], flags: [] });
+      setCurrentUser("root", "root");
+
+      expect(executeCommand("whoami").output).toBe("root");
+      const catResult = executeCommand("cat", {
+        args: ["file.txt"],
+        flags: [],
+      });
+      expect(catResult.error).toBeNull();
+      expect(catResult.output).toBe("secret data\nline 2");
     });
   });
 });

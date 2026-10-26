@@ -137,6 +137,52 @@ const setNodeMetadata = (targetPath, meta) => {
   return updated;
 };
 
+let currentActiveUser = "guest_user";
+let currentActiveGroup = "users";
+
+const getCurrentUser = () => ({
+  user: currentActiveUser,
+  group: currentActiveGroup,
+});
+
+const setCurrentUser = (user, group = "users") => {
+  currentActiveUser = user;
+  currentActiveGroup = group;
+};
+
+const resetCurrentUser = () => {
+  currentActiveUser = "guest_user";
+  currentActiveGroup = "users";
+};
+
+const hasPermission = (
+  targetPath,
+  requiredAccess,
+  user = currentActiveUser,
+  group = currentActiveGroup
+) => {
+  if (user === "root") return true;
+
+  const meta = getNodeMetadata(targetPath);
+  const perms = meta.permissions || "rw-r--r--";
+
+  let startIdx = 6;
+  if (user === meta.owner) {
+    startIdx = 0;
+  } else if (group === meta.group) {
+    startIdx = 3;
+  }
+
+  const accessIdx =
+    requiredAccess === "r"
+      ? startIdx
+      : requiredAccess === "w"
+        ? startIdx + 1
+        : startIdx + 2;
+
+  return perms[accessIdx] === requiredAccess;
+};
+
 const buildLsEntry = (entryPath, displayName) => {
   const stats = fs.statSync(entryPath);
   const meta = getNodeMetadata(entryPath);
@@ -197,7 +243,7 @@ const dateCommand = () => {
 
 const whoamiCommand = () => {
   return {
-    output: "guest_user", // Hardcoded for now
+    output: currentActiveUser,
     error: null,
   };
 };
@@ -673,6 +719,12 @@ const touchCommand = ({ args = [], flags = [] }) => {
     const targetPath = path.resolve(process.cwd(), target);
 
     if (fs.existsSync(targetPath)) {
+      if (!hasPermission(targetPath, "w")) {
+        return {
+          output: null,
+          error: `touch: cannot touch '${target}': Permission denied`,
+        };
+      }
       try {
         fs.utimesSync(targetPath, now, now);
       } catch (error) {
@@ -801,6 +853,13 @@ const catCommand = ({ args = [], flags = [] }) => {
       };
     }
 
+    if (!hasPermission(targetPath, "r")) {
+      return {
+        output: null,
+        error: `cat: ${target}: Permission denied`,
+      };
+    }
+
     try {
       const stats = fs.statSync(targetPath);
       if (stats.isDirectory()) {
@@ -916,6 +975,13 @@ const rmCommand = ({ args = [], flags = [] }) => {
       return {
         output: null,
         error: `rm: cannot remove '${target}': No such file or directory`,
+      };
+    }
+
+    if (!force && !hasPermission(targetPath, "w")) {
+      return {
+        output: null,
+        error: `rm: cannot remove '${target}': Permission denied`,
       };
     }
 
@@ -1915,6 +1981,13 @@ const headCommand = ({ args = [], flags = [] }) => {
       };
     }
 
+    if (!hasPermission(filePath, "r")) {
+      return {
+        output: null,
+        error: `head: cannot open '${file}' for reading: Permission denied`,
+      };
+    }
+
     let stats;
     try {
       stats = fs.statSync(filePath);
@@ -2083,6 +2156,13 @@ const tailCommand = ({ args = [], flags = [] }) => {
       };
     }
 
+    if (!hasPermission(filePath, "r")) {
+      return {
+        output: null,
+        error: `tail: cannot open '${file}' for reading: Permission denied`,
+      };
+    }
+
     let stats;
     try {
       stats = fs.statSync(filePath);
@@ -2242,6 +2322,13 @@ const wcCommand = ({ args = [], flags = [] }) => {
       return {
         output: null,
         error: `wc: ${file}: No such file or directory`,
+      };
+    }
+
+    if (!hasPermission(filePath, "r")) {
+      return {
+        output: null,
+        error: `wc: ${file}: Permission denied`,
       };
     }
 
@@ -2593,4 +2680,8 @@ module.exports = {
   modeToPermissionString,
   permissionStringToMode,
   parseSymbolicMode,
+  getCurrentUser,
+  setCurrentUser,
+  resetCurrentUser,
+  hasPermission,
 };

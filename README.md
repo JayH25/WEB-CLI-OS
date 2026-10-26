@@ -303,7 +303,7 @@ Implement each of the following commands fully — they must work exactly like t
   - [x] `chmod 755 filename` — numeric mode
   - [x] `chmod u+x filename` — symbolic mode
 - [x] Implement **`chown`** — change file owner (simulated)
-- [ ] Enforce permissions: when a command tries to read/write/execute, check if the current user has permission, and return a `Permission denied` error if not
+- [x] Enforce permissions: when a command tries to read/write/execute, check if the current user has permission, and return a `Permission denied` error if not
 
 ### 3.4 — File System Persistence
 
