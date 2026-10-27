@@ -16,6 +16,7 @@ const {
   setCurrentUser,
   resetCurrentUser,
   hasPermission,
+  touchNodeModified,
 } = require("../commands/registry");
 
 describe("Command Registry", () => {
@@ -2608,6 +2609,77 @@ describe("Command Registry", () => {
       });
       expect(catResult.error).toBeNull();
       expect(catResult.output).toBe("secret data\nline 2");
+    });
+  });
+
+  describe("node timestamps (Phase 3.4)", () => {
+    let testBaseDir;
+
+    beforeEach(() => {
+      resetNodeMetadata();
+      testBaseDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "web-cli-os-timestamps-")
+      );
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      resetNodeMetadata();
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("touch creates a file with createdAt and modifiedAt timestamps", () => {
+      process.chdir(testBaseDir);
+      const filePath = path.join(testBaseDir, "file.txt");
+      executeCommand("touch", { args: ["file.txt"], flags: [] });
+
+      const meta = getNodeMetadata(filePath);
+      expect(meta.createdAt).toBeDefined();
+      expect(meta.modifiedAt).toBeDefined();
+      expect(new Date(meta.createdAt).getTime()).not.toBeNaN();
+      expect(new Date(meta.modifiedAt).getTime()).not.toBeNaN();
+    });
+
+    test("mkdir creates a directory with createdAt and modifiedAt timestamps", () => {
+      process.chdir(testBaseDir);
+      const dirPath = path.join(testBaseDir, "folder");
+      executeCommand("mkdir", { args: ["folder"], flags: [] });
+
+      const meta = getNodeMetadata(dirPath);
+      expect(meta.createdAt).toBeDefined();
+      expect(meta.modifiedAt).toBeDefined();
+    });
+
+    test("touchNodeModified updates modifiedAt timestamp", () => {
+      process.chdir(testBaseDir);
+      const filePath = path.join(testBaseDir, "file.txt");
+      executeCommand("touch", { args: ["file.txt"], flags: [] });
+
+      const oldModified = "2020-01-01T00:00:00.000Z";
+      setNodeMetadata(filePath, { modifiedAt: oldModified });
+      expect(getNodeMetadata(filePath).modifiedAt).toBe(oldModified);
+
+      touchNodeModified(filePath);
+      const updatedMeta = getNodeMetadata(filePath);
+      expect(updatedMeta.modifiedAt).not.toBe(oldModified);
+      expect(
+        new Date(updatedMeta.modifiedAt).getFullYear()
+      ).toBeGreaterThanOrEqual(2025);
+    });
+
+    test("touch updates modifiedAt on existing file", () => {
+      process.chdir(testBaseDir);
+      const filePath = path.join(testBaseDir, "existing.txt");
+      executeCommand("touch", { args: ["existing.txt"], flags: [] });
+
+      const oldTime = "2021-06-15T12:00:00.000Z";
+      setNodeMetadata(filePath, { modifiedAt: oldTime });
+
+      executeCommand("touch", { args: ["existing.txt"], flags: [] });
+      const meta = getNodeMetadata(filePath);
+      expect(meta.modifiedAt).not.toBe(oldTime);
     });
   });
 });

@@ -110,8 +110,20 @@ const getNodeMetadata = (targetPath) => {
   }
 
   let isDir = false;
+  let createdAt = new Date().toISOString();
+  let modifiedAt = createdAt;
+
   try {
-    isDir = fs.statSync(resolved).isDirectory();
+    const stats = fs.statSync(resolved);
+    isDir = stats.isDirectory();
+    if (stats.birthtime && !isNaN(stats.birthtime.getTime())) {
+      createdAt = stats.birthtime.toISOString();
+    } else if (stats.ctime && !isNaN(stats.ctime.getTime())) {
+      createdAt = stats.ctime.toISOString();
+    }
+    if (stats.mtime && !isNaN(stats.mtime.getTime())) {
+      modifiedAt = stats.mtime.toISOString();
+    }
   } catch (_err) {
     // fallback if non-existent yet
   }
@@ -120,6 +132,8 @@ const getNodeMetadata = (targetPath) => {
     permissions: isDir ? "rwxr-xr-x" : "rw-r--r--",
     owner: "guest_user",
     group: "users",
+    createdAt,
+    modifiedAt,
   };
 
   nodeMetadataStore.set(resolved, defaultMeta);
@@ -135,6 +149,11 @@ const setNodeMetadata = (targetPath, meta) => {
   };
   nodeMetadataStore.set(resolved, updated);
   return updated;
+};
+
+const touchNodeModified = (targetPath) => {
+  const now = new Date().toISOString();
+  return setNodeMetadata(targetPath, { modifiedAt: now });
 };
 
 let currentActiveUser = "guest_user";
@@ -195,6 +214,8 @@ const buildLsEntry = (entryPath, displayName) => {
     permissions: meta.permissions,
     owner: meta.owner,
     group: meta.group,
+    createdAt: meta.createdAt,
+    modifiedAt: meta.modifiedAt,
   };
 };
 
@@ -639,10 +660,13 @@ const mkdirCommand = ({ args = [], flags = [] }) => {
         }
 
         fs.mkdirSync(targetPath);
+        const nowIso = new Date().toISOString();
         setNodeMetadata(targetPath, {
           permissions: "rwxr-xr-x",
           owner: "guest_user",
           group: "users",
+          createdAt: nowIso,
+          modifiedAt: nowIso,
         });
       } catch (error) {
         return {
@@ -727,6 +751,9 @@ const touchCommand = ({ args = [], flags = [] }) => {
       }
       try {
         fs.utimesSync(targetPath, now, now);
+        setNodeMetadata(targetPath, {
+          modifiedAt: now.toISOString(),
+        });
       } catch (error) {
         return {
           output: null,
@@ -756,10 +783,13 @@ const touchCommand = ({ args = [], flags = [] }) => {
         }
 
         fs.writeFileSync(targetPath, "");
+        const nowIso = now.toISOString();
         setNodeMetadata(targetPath, {
           permissions: "rw-r--r--",
           owner: "guest_user",
           group: "users",
+          createdAt: nowIso,
+          modifiedAt: nowIso,
         });
       } catch (error) {
         return {
@@ -1201,7 +1231,12 @@ const cpCommand = ({ args = [], flags = [] }) => {
         fs.copyFileSync(srcPath, targetDestPath);
       }
       const srcMeta = getNodeMetadata(srcPath);
-      setNodeMetadata(targetDestPath, { ...srcMeta });
+      const cpNow = new Date().toISOString();
+      setNodeMetadata(targetDestPath, {
+        ...srcMeta,
+        createdAt: cpNow,
+        modifiedAt: cpNow,
+      });
     } catch (error) {
       return {
         output: null,
@@ -1410,7 +1445,10 @@ const mvCommand = ({ args = [], flags = [] }) => {
       }
       const srcMeta = getNodeMetadata(srcPath);
       nodeMetadataStore.delete(srcPath);
-      setNodeMetadata(targetDestPath, { ...srcMeta });
+      setNodeMetadata(targetDestPath, {
+        ...srcMeta,
+        modifiedAt: new Date().toISOString(),
+      });
     } catch (error) {
       return {
         output: null,
@@ -2684,4 +2722,5 @@ module.exports = {
   setCurrentUser,
   resetCurrentUser,
   hasPermission,
+  touchNodeModified,
 };
