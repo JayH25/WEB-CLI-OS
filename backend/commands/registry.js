@@ -156,6 +156,64 @@ const touchNodeModified = (targetPath) => {
   return setNodeMetadata(targetPath, { modifiedAt: now });
 };
 
+let activePersistenceFile = path.resolve(
+  process.cwd(),
+  "filesystem_state.json"
+);
+
+const setPersistenceFile = (filePath) => {
+  activePersistenceFile = filePath
+    ? path.resolve(process.cwd(), filePath)
+    : path.resolve(process.cwd(), "filesystem_state.json");
+};
+
+const getPersistenceFile = () => activePersistenceFile;
+
+const saveFileSystem = (customPath = null) => {
+  const targetFile = customPath
+    ? path.resolve(process.cwd(), customPath)
+    : activePersistenceFile;
+
+  const metadataArray = [];
+  for (const [nodePath, meta] of nodeMetadataStore.entries()) {
+    metadataArray.push({
+      path: nodePath,
+      permissions: meta.permissions,
+      owner: meta.owner,
+      group: meta.group,
+      createdAt: meta.createdAt,
+      modifiedAt: meta.modifiedAt,
+    });
+  }
+
+  const state = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    currentUser: currentActiveUser,
+    currentGroup: currentActiveGroup,
+    nodes: metadataArray,
+  };
+
+  try {
+    const dir = path.dirname(targetFile);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(targetFile, JSON.stringify(state, null, 2), "utf-8");
+    return { success: true, count: metadataArray.length, path: targetFile };
+  } catch (err) {
+    return { success: false, error: err.message, path: targetFile };
+  }
+};
+
+const autoSaveFileSystem = () => {
+  try {
+    saveFileSystem();
+  } catch (_err) {
+    // fallback
+  }
+};
+
 let currentActiveUser = "guest_user";
 let currentActiveGroup = "users";
 
@@ -235,7 +293,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, wc, chmod, chown",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, wc, chmod, chown, save",
     error: null,
   };
 };
@@ -668,6 +726,7 @@ const mkdirCommand = ({ args = [], flags = [] }) => {
           createdAt: nowIso,
           modifiedAt: nowIso,
         });
+        autoSaveFileSystem();
       } catch (error) {
         return {
           output: null,
@@ -754,6 +813,7 @@ const touchCommand = ({ args = [], flags = [] }) => {
         setNodeMetadata(targetPath, {
           modifiedAt: now.toISOString(),
         });
+        autoSaveFileSystem();
       } catch (error) {
         return {
           output: null,
@@ -791,6 +851,7 @@ const touchCommand = ({ args = [], flags = [] }) => {
           createdAt: nowIso,
           modifiedAt: nowIso,
         });
+        autoSaveFileSystem();
       } catch (error) {
         return {
           output: null,
@@ -1031,6 +1092,7 @@ const rmCommand = ({ args = [], flags = [] }) => {
         fs.unlinkSync(targetPath);
       }
       nodeMetadataStore.delete(targetPath);
+      autoSaveFileSystem();
     } catch (error) {
       if (!force) {
         return {
@@ -1237,6 +1299,7 @@ const cpCommand = ({ args = [], flags = [] }) => {
         createdAt: cpNow,
         modifiedAt: cpNow,
       });
+      autoSaveFileSystem();
     } catch (error) {
       return {
         output: null,
@@ -1449,6 +1512,7 @@ const mvCommand = ({ args = [], flags = [] }) => {
         ...srcMeta,
         modifiedAt: new Date().toISOString(),
       });
+      autoSaveFileSystem();
     } catch (error) {
       return {
         output: null,
@@ -2568,6 +2632,7 @@ const chmodCommand = ({ args = [], flags = [] }) => {
     }
   }
 
+  autoSaveFileSystem();
   return {
     output: "",
     error: null,
@@ -2636,8 +2701,24 @@ const chownCommand = ({ args = [], flags = [] }) => {
     setNodeMetadata(resolvedPath, updates);
   }
 
+  autoSaveFileSystem();
   return {
     output: "",
+    error: null,
+  };
+};
+
+const saveCommand = ({ args = [] }) => {
+  const customPath = args[0] || null;
+  const res = saveFileSystem(customPath);
+  if (!res.success) {
+    return {
+      output: null,
+      error: `save: failed to save state: ${res.error}`,
+    };
+  }
+  return {
+    output: `File system state serialized successfully (${res.count} nodes)`,
     error: null,
   };
 };
@@ -2668,6 +2749,7 @@ const commandRegistry = {
   wc: wcCommand,
   chmod: chmodCommand,
   chown: chownCommand,
+  save: saveCommand,
 };
 
 /*
@@ -2723,4 +2805,8 @@ module.exports = {
   resetCurrentUser,
   hasPermission,
   touchNodeModified,
+  saveFileSystem,
+  autoSaveFileSystem,
+  setPersistenceFile,
+  getPersistenceFile,
 };

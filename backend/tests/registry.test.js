@@ -17,6 +17,9 @@ const {
   resetCurrentUser,
   hasPermission,
   touchNodeModified,
+  saveFileSystem,
+  setPersistenceFile,
+  getPersistenceFile,
 } = require("../commands/registry");
 
 describe("Command Registry", () => {
@@ -2680,6 +2683,68 @@ describe("Command Registry", () => {
       executeCommand("touch", { args: ["existing.txt"], flags: [] });
       const meta = getNodeMetadata(filePath);
       expect(meta.modifiedAt).not.toBe(oldTime);
+    });
+  });
+
+  describe("file system persistence - serialization (Phase 3.4)", () => {
+    let testBaseDir;
+    let testStateFile;
+
+    beforeEach(() => {
+      resetNodeMetadata();
+      testBaseDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "web-cli-os-persist-")
+      );
+      testStateFile = path.join(testBaseDir, "state.json");
+      setPersistenceFile(testStateFile);
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      resetNodeMetadata();
+      setPersistenceFile(null);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("saveFileSystem serializes metadata tree to JSON file", () => {
+      expect(getPersistenceFile()).toBe(testStateFile);
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["doc.txt"], flags: [] });
+      executeCommand("mkdir", { args: ["archive"], flags: [] });
+
+      const res = saveFileSystem(testStateFile);
+      expect(res.success).toBe(true);
+      expect(fs.existsSync(testStateFile)).toBe(true);
+
+      const parsed = JSON.parse(fs.readFileSync(testStateFile, "utf-8"));
+      expect(parsed.version).toBe(1);
+      expect(parsed.nodes.length).toBeGreaterThanOrEqual(2);
+      const docEntry = parsed.nodes.find((n) => n.path.endsWith("doc.txt"));
+      expect(docEntry).toBeDefined();
+      expect(docEntry.permissions).toBe("rw-r--r--");
+      expect(docEntry.owner).toBe("guest_user");
+    });
+
+    test("autoSaveFileSystem writes to persistence file on write commands", () => {
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["auto.txt"], flags: [] });
+
+      expect(fs.existsSync(testStateFile)).toBe(true);
+      const parsed = JSON.parse(fs.readFileSync(testStateFile, "utf-8"));
+      expect(parsed.nodes.some((n) => n.path.endsWith("auto.txt"))).toBe(true);
+    });
+
+    test("save command outputs success message and count", () => {
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["a.txt", "b.txt"], flags: [] });
+
+      const result = executeCommand("save");
+      expect(result.error).toBeNull();
+      expect(result.output).toContain(
+        "File system state serialized successfully"
+      );
     });
   });
 });
