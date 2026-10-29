@@ -5,12 +5,22 @@ const path = require("path"); // used for file paths
 const { spawn } = require("child_process"); // used by node to run another program (here, cpp engine)
 const morgan = require("morgan");
 const { parseCommand } = require("./modules/commandParser"); // used to parse the command coming from frontend, and then we will send the parsed command to cpp engine, so cpp can understand it better
-const { executeCommand, commandRegistry } = require("./commands/registry"); // contains command functions
+const {
+  executeCommand,
+  commandRegistry,
+  loadFileSystem,
+} = require("./commands/registry"); // contains command functions
 
 const app = express(); // creates backend app
 app.use(cors()); // establishes the connection
 app.use(express.json()); // allows backend to read json data from the 'req'
 app.use(morgan("dev")); // morgan dependency is used for, priting the POST and GET types of request.
+
+// Load persisted file system state on server startup
+const startupLoad = loadFileSystem();
+if (startupLoad.success) {
+  console.log(`[Persistence] Loaded ${startupLoad.count} nodes from disk`);
+}
 
 const PORT = process.env.PORT || 5000;
 

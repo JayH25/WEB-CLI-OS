@@ -308,8 +308,8 @@ Implement each of the following commands fully — they must work exactly like t
 ### 3.4 — File System Persistence
 
 - [x] Serialize the in-memory file system tree to a JSON file on disk after every write operation
-- [ ] Load the file system from this JSON file when the server starts
-- [ ] Implement a `save` and `load` mechanism so file system state survives server restarts
+- [x] Load the file system from this JSON file when the server starts
+- [x] Implement a `save` and `load` mechanism so file system state survives server restarts
 - [x] Add timestamps to every node: `createdAt` and `modifiedAt`
 - [x] Update `modifiedAt` whenever a file is written to
 

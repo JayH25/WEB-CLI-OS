@@ -18,6 +18,7 @@ const {
   hasPermission,
   touchNodeModified,
   saveFileSystem,
+  loadFileSystem,
   setPersistenceFile,
   getPersistenceFile,
 } = require("../commands/registry");
@@ -2745,6 +2746,88 @@ describe("Command Registry", () => {
       expect(result.output).toContain(
         "File system state serialized successfully"
       );
+    });
+  });
+
+  describe("file system persistence - state load and recovery (Phase 3.4)", () => {
+    let testBaseDir;
+    let testStateFile;
+
+    beforeEach(() => {
+      resetNodeMetadata();
+      resetCurrentUser();
+      testBaseDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "web-cli-os-persist-load-")
+      );
+      testStateFile = path.join(testBaseDir, "state.json");
+      setPersistenceFile(testStateFile);
+    });
+
+    afterEach(() => {
+      process.chdir(startingCwd);
+      resetNodeMetadata();
+      resetCurrentUser();
+      setPersistenceFile(null);
+      if (fs.existsSync(testBaseDir)) {
+        fs.rmSync(testBaseDir, { recursive: true, force: true });
+      }
+    });
+
+    test("loadFileSystem restores file system node state", () => {
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["persisted.txt"], flags: [] });
+      const target = path.join(testBaseDir, "persisted.txt");
+      executeCommand("chmod", { args: ["700", "persisted.txt"], flags: [] });
+      executeCommand("chown", {
+        args: ["alice:devs", "persisted.txt"],
+        flags: [],
+      });
+
+      // Save state to JSON
+      saveFileSystem(testStateFile);
+
+      // Simulate server restart: clear memory state
+      resetNodeMetadata();
+      resetCurrentUser();
+
+      // Load state from file
+      const loadRes = loadFileSystem(testStateFile);
+      expect(loadRes.success).toBe(true);
+
+      // Verify node metadata was fully recovered
+      const recovered = getNodeMetadata(target);
+      expect(recovered.permissions).toBe("rwx------");
+      expect(recovered.owner).toBe("alice");
+      expect(recovered.group).toBe("devs");
+    });
+
+    test("load command restores state via CLI", () => {
+      process.chdir(testBaseDir);
+      executeCommand("touch", { args: ["file.txt"], flags: [] });
+      saveFileSystem(testStateFile);
+
+      resetNodeMetadata();
+      const result = executeCommand("load", {
+        args: [testStateFile],
+        flags: [],
+      });
+      expect(result.error).toBeNull();
+      expect(result.output).toContain("File system state loaded successfully");
+    });
+
+    test("load command returns error when file does not exist", () => {
+      process.chdir(testBaseDir);
+      const result = executeCommand("load", {
+        args: ["nonexistent_state.json"],
+        flags: [],
+      });
+      expect(result).toEqual({
+        output: null,
+        error:
+          "load: failed to load state: Persistence file '" +
+          path.resolve(process.cwd(), "nonexistent_state.json") +
+          "' does not exist",
+      });
     });
   });
 });

@@ -52,3 +52,5 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+auto_push_scheduler.ps1
+*filesystem_state.json

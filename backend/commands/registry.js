@@ -214,6 +214,54 @@ const autoSaveFileSystem = () => {
   }
 };
 
+const loadFileSystem = (customPath = null) => {
+  const targetFile = customPath
+    ? path.resolve(process.cwd(), customPath)
+    : activePersistenceFile;
+
+  if (!fs.existsSync(targetFile)) {
+    return {
+      success: false,
+      error: `Persistence file '${targetFile}' does not exist`,
+    };
+  }
+
+  try {
+    const raw = fs.readFileSync(targetFile, "utf-8");
+    const state = JSON.parse(raw);
+
+    if (state.currentUser) {
+      setCurrentUser(state.currentUser, state.currentGroup || "users");
+    }
+
+    if (Array.isArray(state.nodes)) {
+      for (const node of state.nodes) {
+        if (node && node.path) {
+          nodeMetadataStore.set(node.path, {
+            permissions: node.permissions || "rw-r--r--",
+            owner: node.owner || "guest_user",
+            group: node.group || "users",
+            createdAt: node.createdAt || new Date().toISOString(),
+            modifiedAt: node.modifiedAt || new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    return {
+      success: true,
+      count: state.nodes ? state.nodes.length : 0,
+      path: targetFile,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message,
+      path: targetFile,
+    };
+  }
+};
+
 let currentActiveUser = "guest_user";
 let currentActiveGroup = "users";
 
@@ -293,7 +341,7 @@ const formatLsOutput = (entries, longFormat) => {
 const helpCommand = () => {
   return {
     output:
-      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, wc, chmod, chown, save",
+      "Available commands: help, echo, clear, date, ls, whoami, uname, pwd, cd, mkdir, touch, cat, rm, cp, mv, find, grep, head, tail, wc, chmod, chown, save, load",
     error: null,
   };
 };
@@ -2723,6 +2771,21 @@ const saveCommand = ({ args = [] }) => {
   };
 };
 
+const loadCommand = ({ args = [] }) => {
+  const customPath = args[0] || null;
+  const res = loadFileSystem(customPath);
+  if (!res.success) {
+    return {
+      output: null,
+      error: `load: failed to load state: ${res.error}`,
+    };
+  }
+  return {
+    output: `File system state loaded successfully (${res.count} nodes)`,
+    error: null,
+  };
+};
+
 // ---------------------------------------------------------
 // The Command Registry
 // ---------------------------------------------------------
@@ -2750,6 +2813,7 @@ const commandRegistry = {
   chmod: chmodCommand,
   chown: chownCommand,
   save: saveCommand,
+  load: loadCommand,
 };
 
 /*
@@ -2806,6 +2870,7 @@ module.exports = {
   hasPermission,
   touchNodeModified,
   saveFileSystem,
+  loadFileSystem,
   autoSaveFileSystem,
   setPersistenceFile,
   getPersistenceFile,
